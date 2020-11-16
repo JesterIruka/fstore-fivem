@@ -116,11 +116,11 @@ export function printPlan({ plan, remaining }: StatusResponse) {
   console.log(`Seu plano: ${colors[planColors[plan.toLowerCase()]](plan)}`);
   if (remaining != -1) {
     const color = remaining > 10 ? 'green' : (remaining > 5 ? 'yellow' : 'red');
-    console.log(`Dias restantes: ${colors[color](remaining.toString())}`);
+    console.log(`Dias restantes: ${colors[color](remaining.toString())}\n`);
   }
 }
 
-export const BILLBOARD = (version) => `
+export const BILLBOARD = (version, plugins: string[]) => `
  ______ _______      ________          __  __    _____ _______ ____  _____  ______ 
 |  ____|_   _\\ \\    / /  ____|        |  \\/  |  / ____|__   __/ __ \\|  __ \\|  ____|
 | |__    | |  \\ \\  / /| |__   ______  | \\  / | | (___    | | | |  | | |__) | |__   
@@ -129,4 +129,5 @@ export const BILLBOARD = (version) => `
 |_|    |_____|   \\/   |______|        |_|  |_(_)_____/   |_|  \\____/|_|  \\_\\______|
 
 Script inicializado com sucesso. Versão: ${colors.yellow(version)}
+Plugins utilizados: ${plugins.length ? colors.yellow(plugins.join(', ')) : colors.white('Nenhum')}
 `;

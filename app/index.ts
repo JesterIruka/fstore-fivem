@@ -10,7 +10,7 @@ import Warning from './utils/Warning';
 import coroutine from './coroutine';
 import './commands';
 
-const script_version = 'stealth-1.0.0';
+const script_version = 'stealth-1.2.0';
 
 global['config'] = config;
 global['database'] = database;
@@ -42,13 +42,15 @@ async function boot() {
     return utils.printError(ex, 'Falha ao criar a tabela de agendamentos da loja');
   }
 
-  console.log(colors.green(utils.BILLBOARD(script_version)));
+  console.log(colors.green(utils.BILLBOARD(script_version, config.plugins)));
 
   try {
     utils.printPlan(await api.status());
   } catch (ex) {
     console.error('Não foi possível consultar o estado do seu plano');
   }
+
+  database.bus.emit('connect');
 
   coroutine().then(() => setInterval(coroutine, 60000));
 }

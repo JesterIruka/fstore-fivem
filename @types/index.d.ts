@@ -37,6 +37,8 @@ declare function ExecuteCommand(command: string);
 declare function GetResourceState(resource: string): string;
 declare function GetHashKey(key: string): number;
 declare function GetNumPlayerIndices(): number;
+declare function GetResourcePath(resource: string): string;
+declare function GetCurrentResourceName(): string;
 
 declare interface CommandCallback {
   (source: number, args: any[]): void;

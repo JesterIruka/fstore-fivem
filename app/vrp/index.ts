@@ -6,6 +6,7 @@ import Warning from '../utils/Warning';
 import { firstAvailableNumber } from '../utils';
 import * as homesMonitor from './homes_permissions';
 import('./ids_monitor');
+import('./intelisense');
 
 const { snowflake } = config;
 

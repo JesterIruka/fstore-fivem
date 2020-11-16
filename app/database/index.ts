@@ -1,13 +1,15 @@
-import mysql, { RowDataPacket } from 'mysql2/promise';
+import mysql, { FieldPacket, RowDataPacket } from 'mysql2/promise';
 import config from '../utils/config';
 import { addWebhookBatch } from '../api';
 import * as utils from '../utils';
+import { EventEmitter } from 'events';
 
 const dbprefix = config.snowflake.database_prefix || 'vrp';
 
 let $tables: string[] = [];
 
 let connection: mysql.Connection | undefined = undefined;
+export const bus = new EventEmitter();
 
 export function ping() {
   return connection?.ping();
@@ -16,13 +18,13 @@ export function ping() {
 export const connect = () => (new Promise<mysql.QueryError | null>((resolve) => {
   mysql.createConnection(config.mysql).then(con => {
     connection = con;
-    con.connect().then(() => resolve(null)).catch(resolve);
+    resolve(null);
   }).catch(err => resolve(err));
 }));
 
 export function onConnect(callback) {
   if (isConnected()) callback();
-  else connection?.on('connect', callback);
+  else bus.once('connect', callback);
 }
 
 export async function queryTables() {
@@ -32,6 +34,13 @@ export async function queryTables() {
 }
 
 export const isConnected = () => !!connection;
+
+export async function queryFields(table: string): Promise<string[]> {
+  if (!connection) throw new Error('Mysql isnt connected');
+  if (table.startsWith('vrp_') && dbprefix != 'vrp') table = table.replace(/vrp_/g, dbprefix + '_');
+  const [, fields] = await connection.query(`SELECT * FROM \`${table}\` LIMIT 0`);
+  return fields.map(s => s.name);
+}
 
 export async function sql(sql: string, args: any[] = [], ignore = false): Promise<RowDataPacket[]> {
   if (!connection) throw new Error('Mysql isnt connected');

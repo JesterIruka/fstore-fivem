@@ -2,8 +2,43 @@ import config from './utils/config';
 import * as proxy from './utils/proxy';
 import * as database from './database';
 import * as utils from './utils';
+import { promises as fs } from 'fs';
 import ShipWipe from './services/ShipWipe';
 import ChangeCar from './services/ChangeCar';
+
+async function isAdmin(source: number) {
+  if (source != 0) {
+    if (!proxy.isVRP)
+      return false;
+
+    const id = await proxy.getId(source);
+
+    return await proxy.hasPermission(id, "admin.permissao");
+  } else return true;
+}
+
+RegisterCommand((config.command || 'fval') + '-addplugin', async (source, args) => {
+  if (await isAdmin(source)) {
+    if (args.length == 0) {
+      return utils.emitError(source, 'O plugin não pode ser vazio!');
+    }
+    const plugin = args.join(' ');
+    const dir = GetResourcePath(GetCurrentResourceName()) + '/config.json';
+
+    try {
+      const json = JSON.parse(await (await fs.readFile(dir)).toString('utf-8'));
+
+      json.plugins.push(plugin);
+      config.plugins.push(plugin);
+
+      await fs.writeFile(dir, JSON.stringify(json, null, 2));
+    } catch (ex) {
+      return utils.emitError(source, 'Falha ao sobrescrever a config.json, verifique se a formatação atual está correta');
+    }
+
+    utils.emitSuccess(source, 'Plugin adicionado com sucesso!');
+  }
+});
 
 const shortcuts = {
   shipwipe: ShipWipe,
@@ -17,7 +52,7 @@ RegisterCommand(config.command || 'fval', async (source, args) => {
     }
     const id = await proxy.getId(source);
 
-    if (!proxy.hasPermission(id, "admin.permissao")) {
+    if (!await proxy.hasPermission(id, "admin.permissao")) {
       return utils.emitError(source, 'Sem permissão!');
     }
   }
@@ -39,8 +74,6 @@ RegisterCommand(config.command || 'fval', async (source, args) => {
     utils.emitError(source, 'Não é possível executar um comando vazio');
   }
 });
-
-
 
 if (!config.hasPlugin('disable-vip-command')) {
   RegisterCommand('vip', async (source, args) => {
