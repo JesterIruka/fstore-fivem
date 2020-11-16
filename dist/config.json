@@ -1,0 +1,46 @@
+{
+  "token": "token-da-loja",
+  "command": "fval",
+  "mysql": {
+    "host": "localhost",
+    "port": 3306,
+    "database": "zirix",
+    "user": "root",
+    "password": ""
+  },
+  "snowflake": {
+    "database_prefix": "vrp",
+    "vehicles": "vrp_user_vehicles",
+    "priority": "vrp_priority",
+    "homes": "vrp_homes_permissions",
+    "esx": {
+      "admin_group": "admin",
+      "default_group": "unemployed",
+      "vehicle_plate": "AAA 000"
+    }
+  },
+  "requireOnlineToDelivery": false,
+  "plugins": [],
+  "chat": {
+    "enabled": true,
+    "global": true,
+    "color": "#ffa852",
+    "format": ":name comprou :product."
+  },
+  "nui": {
+    "enabled": true,
+    "title": "Parabéns, :name",
+    "subtitle": "Você acabou de adquirir :product"
+  },
+  "messages": {
+    "/vip": {
+      "color": "#5bc0de",
+      "none_color": "#e53935",
+      "none": "Não foi encontrado nenhum benefício para expirar",
+      "group": "Seu grupo :name expira no dia :date",
+      "vehicle": "Seu veículo :name expira no dia :date",
+      "home": "Sua casa :name expira no dia :date"
+    }
+  },
+  "webhook": "link-do-webhook"
+}

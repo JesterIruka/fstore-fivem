@@ -1,0 +1,111 @@
+<html>
+
+<head>
+  <link rel="stylesheet" href="index.css">
+</head>
+
+<body style="display: none;">
+
+  <div style="text-align: center; z-index: 255;" class="container">
+    <h1 id="title">Título</h1>
+    <h3 id="subtitle">Subtítulo</h3>
+  </div>
+
+  <div class="balloon" style="--x: 68; --h: 250; --s: 20; --d: 4; --delay: 6;">
+    <div class="balloon__handle"></div>
+  </div>
+  <div class="balloon" style="--x: 32; --h: 13; --s: 20; --d: 7; --delay: 2;">
+    <div class="balloon__handle"></div>
+  </div>
+  <div class="balloon" style="--x: 80; --h: 73; --s: 20; --d: 6; --delay: 4;">
+    <div class="balloon__handle"></div>
+  </div>
+  <div class="balloon" style="--x: 49; --h: 156; --s: 20; --d: 7; --delay: 1;">
+    <div class="balloon__handle"></div>
+  </div>
+  <div class="balloon" style="--x: 37; --h: 279; --s: 20; --d: 2; --delay: 3;">
+    <div class="balloon__handle"></div>
+  </div>
+  <div class="balloon" style="--x: 21; --h: -1; --s: 20; --d: 4; --delay: 6;">
+    <div class="balloon__handle"></div>
+  </div>
+  <div class="balloon" style="--x: 70; --h: 72; --s: 20; --d: 9; --delay: 9;">
+    <div class="balloon__handle"></div>
+  </div>
+  <div class="balloon" style="--x: 75; --h: 341; --s: 20; --d: 8; --delay: 3;">
+    <div class="balloon__handle"></div>
+  </div>
+  <div class="balloon" style="--x: 4; --h: 279; --s: 20; --d: 7; --delay: 5;">
+    <div class="balloon__handle"></div>
+  </div>
+  <div class="balloon" style="--x: 72; --h: 210; --s: 20; --d: 7; --delay: 6;">
+    <div class="balloon__handle"></div>
+  </div>
+  <div class="balloon" style="--x: 33; --h: 21; --s: 20; --d: 7; --delay: 6;">
+    <div class="balloon__handle"></div>
+  </div>
+  <div class="balloon" style="--x: 26; --h: 2; --s: 20; --d: 1; --delay: 3;">
+    <div class="balloon__handle"></div>
+  </div>
+  <div class="balloon" style="--x: 95; --h: 154; --s: 20; --d: 4; --delay: 7;">
+    <div class="balloon__handle"></div>
+  </div>
+  <div class="balloon" style="--x: 43; --h: 305; --s: 20; --d: 8; --delay: 5;">
+    <div class="balloon__handle"></div>
+  </div>
+  <div class="balloon" style="--x: 90; --h: 82; --s: 20; --d: 5; --delay: 10;">
+    <div class="balloon__handle"></div>
+  </div>
+  <div class="balloon" style="--x: 77; --h: 250; --s: 20; --d: 1; --delay: 2;">
+    <div class="balloon__handle"></div>
+  </div>
+  <div class="balloon" style="--x: 99; --h: 23; --s: 20; --d: 5; --delay: 10;">
+    <div class="balloon__handle"></div>
+  </div>
+  <div class="balloon" style="--x: 79; --h: 149; --s: 20; --d: 5; --delay: 6;">
+    <div class="balloon__handle"></div>
+  </div>
+
+  <span id="primaria"></span>
+  <span id="secundaria"></span>
+
+  <script src="nui://game/ui/jquery.js" type="text/javascript"></script>
+  <script>
+    let visible = false;
+    let timestamp = 0;
+    const body = $('body');
+
+    let removeFocusPath = '';
+
+    window.addEventListener('message', (event) => {
+      const data = event.data;
+
+      removeFocusPath = 'http://'+data.name+'/removeFocus';
+      $('#title').html(data.title || '')
+      $('#subtitle').html(data.subtitle || '');
+      timestamp = Date.now();
+      visible = true;
+      body.fadeIn(500);
+    });
+
+    setInterval(() => {
+      if (visible && Date.now() - timestamp >= 30000) {
+        close();
+      }
+    }, 1000);
+
+    document.onkeyup = (event) => {
+      if (Date.now() - timestamp >= 5000) {
+        close();
+      }
+    };
+
+    function close() {
+      body.fadeOut(500);
+      $.post(removeFocusPath);
+      visible = false;
+    }
+  </script>
+</body>
+
+</html>
