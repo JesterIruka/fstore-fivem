@@ -103,10 +103,17 @@ export function printError(error: Error, title?: string) {
   if (title) console.error(title);
   if (error.name != 'Error') console.error(error.name);
   console.error(error.message);
-  console.error(Array.isArray(error.stack) ? error.stack.map(e => JSON.stringify(e)).join('\n') : error);
+  if (Array.isArray(error.stack)) {
+    console.error(error.stack.map(({ file, line, name }) => {
+      return `${file}:${line} <--> ${name}`;
+    }).join('\n'));
+  } else {
+    console.error(error.stack);
+  }
 }
 
 const planColors = {
+  free: 'gray',
   basic: 'green',
   pro: 'yellow',
   diamond: 'cyan'
