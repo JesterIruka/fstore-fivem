@@ -36,7 +36,7 @@ async function fetch() {
         product: Object.values(sale.products).join(' & ')
       };
 
-      if (config.nui.enabled) {
+      if (config.nui.enabled && source) {
         const { title, subtitle } = config.nui;
         utils.sendTitle(source, config.$trans(title, $data), config.$trans(subtitle, $data));
       }
