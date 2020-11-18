@@ -2,7 +2,7 @@ import axios from 'axios';
 import { formatDate } from '../utils';
 import cfg, { token } from '../utils/config';
 
-const hasWebhook = (cfg.webhook || cfg.webhook_url)?.toLowerCase().includes("discordapp.com/api/webhooks");
+const hasWebhook = cfg.webhook.toLowerCase().includes("/api/webhooks");
 
 const endpoint = axios.create({
   baseURL: `https://five-m.store/api/v2`,
@@ -67,7 +67,7 @@ export function sendWebhook(content, color) {
     console.log(formatted);
     return Promise.resolve();
   }
-  else return endpoint.post(cfg.webhook_url, {
+  else return endpoint.post(cfg.webhook, {
     embeds: [
       {
         title: formatDate(),

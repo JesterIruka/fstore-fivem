@@ -364,7 +364,7 @@ export const addTemporaryHousePermission = addTemporaryHomePermission;
 //  OUTROS
 //
 
-export const addItem = async (id, item, amount) => {
+export const addItem = async (id, item, amount: number = 1) => {
   if (await isOnline(id)) {
     return lua(`vRP.giveInventoryItem(${id}, "${item}", ${amount})`);
   } else {

@@ -6,6 +6,15 @@ import { promises as fs } from 'fs';
 import ShipWipe from './services/ShipWipe';
 import ChangeCar from './services/ChangeCar';
 
+async function changeConfig(callback: Function) {
+  const dir = GetResourcePath(GetCurrentResourceName()) + '/config.json';
+
+  const contents = await fs.readFile(dir);
+  const json = JSON.parse(contents.toString('utf-8'));
+  await callback(json);
+  await fs.writeFile(dir, JSON.stringify(json, null, 2));
+}
+
 async function isAdmin(source: number) {
   if (source != 0) {
     if (!proxy.isVRP)
@@ -23,15 +32,13 @@ RegisterCommand((config.command || 'fval') + '-addplugin', async (source, args) 
       return utils.emitError(source, 'O plugin não pode ser vazio!');
     }
     const plugin = args.join(' ');
-    const dir = GetResourcePath(GetCurrentResourceName()) + '/config.json';
+
 
     try {
-      const json = JSON.parse(await (await fs.readFile(dir)).toString('utf-8'));
-
-      json.plugins.push(plugin);
-      config.plugins.push(plugin);
-
-      await fs.writeFile(dir, JSON.stringify(json, null, 2));
+      await changeConfig((cfg) => {
+        cfg.plugins.push(plugin);
+        config.plugins.push(plugin);
+      });
     } catch (ex) {
       return utils.emitError(source, 'Falha ao sobrescrever a config.json, verifique se a formatação atual está correta');
     }

@@ -11,7 +11,14 @@ async function fetch() {
   const changed: number[] = [];
 
   const all = [...response.approved, ...response.refunded];
-  if (proxy.isESX) all.forEach(s => s.player = 'steam:' + s.player);
+  if (proxy.isESX) {
+    all.forEach(s => s.player = 'steam:' + s.player);
+    if (config.hasPlugin('esx-user-identifiers')) {
+      for (let sale of all) {
+        sale.player = await proxy.esx.getLicense(sale.player);
+      }
+    }
+  }
   all.forEach(s => s.commands = s.commands.map(c => c.replace(/\?/g, s.player.toString())));
 
   for (let sale of all) {

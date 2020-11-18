@@ -3,12 +3,20 @@ import * as api from '../api';
 import { sql, pluck, insert, createAppointment, after } from '../database';
 import config, { hasPlugin } from '../utils/config';
 import Warning from '../utils/Warning';
+import { vrp } from '../utils/proxy';
 
 const snowflake = config.snowflake.esx;
 
 export const isOnline = (steam_hex) => lua(`isOnline("${steam_hex}")`);
 export const getSource = (steam_hex) => lua(`getSource("${steam_hex}")`);
 export const getSteamHex = (source) => lua(`ESX.Players[${source}].identifier`)
+export const getLicense = async (steam_hex) => {
+  if (hasPlugin('esx-user-identifiers')) {
+    const [row] = await sql('SELECT license FROM user_identifiers WHERE identifier=?', [steam_hex]);
+    return row ? row.license.split(':')[1] : undefined;
+  }
+}
+
 export const getName = async (steam_hex) => {
   const [row] = await sql('SELECT firstname,lastname FROM users WHERE identifier=?', [steam_hex]);
   if (row) {
@@ -44,11 +52,22 @@ export const setGroup = async (steam_hex, group) => {
     return sql('UPDATE users SET group=? WHERE identifier=?', [group, steam_hex]);
 }
 
+//steam_hex turn into license hex using esx-user-identifiers
 export const addBank = async (steam_hex, value) => {
   if (await isOnline(steam_hex))
     return lua(`addBank("${steam_hex}", ${value})`);
-  else
-    return sql('UPDATE users SET bank=bank+? WHERE identifier=?', [value, steam_hex]);
+  else {
+    if (hasPlugin('esx-user-identifiers')) {
+      let [{ accounts }] = await sql('SELECT accounts FROM users WHERE identifier=?', [steam_hex]);
+      accounts = JSON.parse(accounts);
+      accounts.bank += value;
+      accounts = JSON.stringify(accounts);
+
+      return sql('UPDATE users SET accounts=? WHERE identifier=?', [accounts, steam_hex]);
+    } else {
+      return sql('UPDATE users SET bank=bank+? WHERE identifier=?', [value, steam_hex]);
+    }
+  }
 }
 
 export const addWallet = async (steam_hex, value) => {

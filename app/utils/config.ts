@@ -50,10 +50,7 @@ interface Config {
     }
   },
   webhook: string;
-  webhook_url: string;
 }
-
-config.webhook_url = config.webhook;
 
 export function hasPlugin(...plugins: string[]): boolean {
   for (let pl of plugins)
