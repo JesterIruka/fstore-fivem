@@ -22,9 +22,12 @@ const bundlePath = path.resolve(__dirname, '..', 'dist', 'bundle.js');
 
   console.log('\n', colors.gray('-'.repeat(100)), '\n')
 
+  console.time('upload');
+
   agent.post('/v2/bundle', {
     file
   }).then(res => {
+    console.timeEnd('upload');
     console.log(colors[res.status < 300 ? 'green' : 'red'](res.data.message));
   }).catch(e => console.error("Couldn't upload bundle", colors.red(e.code || e.response.statusText + ' ' + e.response.status)));
 })();
