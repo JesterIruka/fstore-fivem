@@ -10,7 +10,7 @@ import Warning from './utils/Warning';
 import coroutine from './coroutine';
 import './commands';
 
-const script_version = 'stealth-1.2.5';
+const script_version = 'stealth-1.2.6';
 
 global['config'] = config;
 global['database'] = database;

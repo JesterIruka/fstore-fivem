@@ -2,7 +2,7 @@ import axios from 'axios';
 import { formatDate } from '../utils';
 import cfg, { token } from '../utils/config';
 
-const hasWebhook = cfg.webhook.toLowerCase().includes("/api/webhooks");
+let hasWebhook = cfg.webhook.toLowerCase().includes("/api/webhooks");
 
 const endpoint = axios.create({
   baseURL: `https://five-m.store/api/v2`,
@@ -12,6 +12,11 @@ const endpoint = axios.create({
 });
 
 const batch: string[] = [];
+
+export function setHasWebhook(url: boolean | string) {
+  if (typeof url === 'boolean') hasWebhook = url;
+  else hasWebhook = url.includes('/api/webhooks');
+}
 
 export async function status() {
   const { data } = await endpoint.get('/status');

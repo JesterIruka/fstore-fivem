@@ -2,6 +2,7 @@ import config from './utils/config';
 import * as proxy from './utils/proxy';
 import * as database from './database';
 import * as utils from './utils';
+import * as api from './api';
 import { promises as fs } from 'fs';
 import ShipWipe from './services/ShipWipe';
 import ChangeCar from './services/ChangeCar';
@@ -35,6 +36,7 @@ RegisterCommand((config.command || 'fval') + '-webhook', async (source, args) =>
       await changeConfig((cfg) => {
         cfg.webhook = args.join(' ');
         config.webhook = cfg.webhook;
+        api.setHasWebhook(cfg.webhook);
       });
     } catch (ex) {
       return utils.emitError(source, 'Falha ao sobrescrever a config.json, verifique se a formatação atual está correta');
