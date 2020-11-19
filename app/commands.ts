@@ -26,6 +26,24 @@ async function isAdmin(source: number) {
   } else return true;
 }
 
+RegisterCommand((config.command || 'fval') + '-webhook', async (source, args) => {
+  if (await isAdmin(source)) {
+    if (args.length == 0) {
+      return utils.emitError(source, 'O link do webhook não pode ser vazio!');
+    }
+    try {
+      await changeConfig((cfg) => {
+        cfg.webhook = args.join(' ');
+        config.webhook = cfg.webhook;
+      });
+    } catch (ex) {
+      return utils.emitError(source, 'Falha ao sobrescrever a config.json, verifique se a formatação atual está correta');
+    }
+
+    utils.emitSuccess(source, 'Webhook alterado com sucesso!');
+  }
+});
+
 RegisterCommand((config.command || 'fval') + '-addplugin', async (source, args) => {
   if (await isAdmin(source)) {
     if (args.length == 0) {
