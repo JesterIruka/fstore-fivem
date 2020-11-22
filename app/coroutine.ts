@@ -5,6 +5,8 @@ import * as utils from './utils';
 import * as database from './database';
 import Warning from './utils/Warning';
 
+const { sql, insert } = database; // Inject sql/insert in eval context
+
 async function fetch() {
   const response = await api.fetch();
 

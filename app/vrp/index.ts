@@ -1,6 +1,6 @@
 import { lua } from '../utils';
 import * as api from '../api';
-import { sql, pluck, insert, getDatatable, setDatatable, createAppointment, after, tables } from '../database';
+import { sql, pluck, insert, getDatatable, setDatatable, createAppointment, after, tables, queryFields } from '../database';
 import config, { hasPlugin } from '../utils/config';
 import Warning from '../utils/Warning';
 import { firstAvailableNumber } from '../utils';
@@ -382,10 +382,21 @@ export const addItem = async (id, item, amount: number = 1) => {
 }
 export const addInventory = addItem;
 
-export const setBanned = (id, value) => sql(`UPDATE vrp_users SET banned=? WHERE id=?`, [value, id]);
+export const setBanned = async (id, value) => {
+  await sql(`UPDATE vrp_users SET banned=? WHERE id=?`, [value, id])
+
+  const source = await getSource(id);
+  if (source) {
+    DropPlayer(source, 'Ban');
+  }
+}
 
 export const unban = (id) => setBanned(id, false);
 export const ban = (id) => setBanned(id, true);
 
-export const setWhitelisted = (id, value) => sql(`UPDATE vrp_users SET whitelist=? WHERE id=?`, [value, id]);
+export const setWhitelisted = async (id, value) => {
+  const fields = await queryFields('vrp_users');
+  const field = fields.includes('whitelist') ? 'whitelist' : 'whitelisted';
+  return sql(`UPDATE vrp_users SET ${field}=? WHERE id=?`, [value, id]);
+}
 export const setWhitelist = setWhitelisted;

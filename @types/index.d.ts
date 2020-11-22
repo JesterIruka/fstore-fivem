@@ -39,6 +39,7 @@ declare function GetHashKey(key: string): number;
 declare function GetNumPlayerIndices(): number;
 declare function GetResourcePath(resource: string): string;
 declare function GetCurrentResourceName(): string;
+declare function DropPlayer(source: number, string: reason): void;
 
 declare interface CommandCallback {
   (source: number, args: any[]): void;
