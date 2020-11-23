@@ -10,7 +10,7 @@ import Warning from './utils/Warning';
 import coroutine from './coroutine';
 import './commands';
 
-const script_version = 'stealth-1.2.8';
+const script_version = 'stealth-1.2.9';
 
 global['config'] = config;
 global['database'] = database;
@@ -26,10 +26,10 @@ async function boot() {
 
   let error: Error | null;
   while (error = await database.connect()) {
-    const [fatal, message] = utils.isFatal(error);
+    const [fatal, message, original] = utils.isFatal(error);
 
+    console.error(message);
     if (fatal) {
-      console.error(message);
       return console.error('O script não iniciará pois ocorreu um erro fatal ao se conectar com o MySQL');
     } else {
       await utils.sleep(5000);

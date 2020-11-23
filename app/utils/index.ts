@@ -84,13 +84,20 @@ export function nodeResolve(path: string, force: boolean = false) {
 
 type FatalResponse = (string | boolean)[];
 
+const knowErrors = {
+  'TIMEDOUT': [false, 'Um timedout ocorreu ao se conectar com o banco de dados'],
+  'ENOTFOUND': [false, 'Não foi possível resolver o endereço de ip do banco de dados'],
+  'Access denied': [true, 'Combinação de usuário e senha inválida para o banco de dados'],
+  'Unknown database': [true, 'A database inserida na config.json não existe'],
+  'ECONNREFUSED': [true, 'Não foi possível se conectar no banco de dados (Conexão recusada)']
+};
 
 export function isFatal(error: Error): FatalResponse {
   const msg = error.message;
-  for (let [k, v] of Object.entries(error))
+  for (let [k, v] of Object.entries(knowErrors))
     if (msg.includes(k))
       return v;
-  return [false, 'Erro não catalogado, o script tentará se conectar ao MySQL em 5 segundos'];
+  return [false, 'Erro não catalogado, o script tentará se conectar ao MySQL em 5 segundos', msg];
 }
 
 export function firstAvailableNumber(array: number[]): Number {
