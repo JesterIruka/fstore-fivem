@@ -6,6 +6,7 @@ import * as api from './api';
 import { promises as fs } from 'fs';
 import ShipWipe from './services/ShipWipe';
 import ChangeCar from './services/ChangeCar';
+import ChangeAppointment from './services/ChangeAppointment';
 
 async function changeConfig(callback: Function) {
   const dir = GetResourcePath(GetCurrentResourceName()) + '/config.json';
@@ -69,7 +70,15 @@ RegisterCommand((config.command || 'fval') + '-addplugin', async (source, args) 
 
 const shortcuts = {
   shipwipe: ShipWipe,
-  trocarcarro: ChangeCar
+  trocarcarro: ChangeCar,
+  mudarid: ChangeAppointment,
+}
+
+async function hasAnyPermission(id, ...arr) {
+  for (let p of arr)
+    if (await proxy.hasPermission(id, p))
+      return true;
+  return false;
 }
 
 RegisterCommand(config.command || 'fval', async (source, args) => {
@@ -79,7 +88,7 @@ RegisterCommand(config.command || 'fval', async (source, args) => {
     }
     const id = await proxy.getId(source);
 
-    if (!await proxy.hasPermission(id, "admin.permissao")) {
+    if (!await hasAnyPermission(id, "admin.permissao", "administrador.permissao")) {
       return utils.emitError(source, 'Sem permissão!');
     }
   }
