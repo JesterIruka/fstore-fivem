@@ -83,6 +83,19 @@ export const addBank = async (id, value) => {
 }
 export const bank = addBank;
 
+export const removeBank = async (id, value) => {
+  if (await isOnline(id)) {
+    if (hasPlugin('@azteca', 'vrp-old'))
+      return lua(`vRP.setBankMoney({${id}, vRP.getBankMoney({${id}}) - ${value} })`);
+
+    return lua(`vRP.setBankMoney(${id}, vRP.getBankMoney(${id}) - ${value})`)
+  } else {
+    if (hasPlugin('@asgardcity'))
+      return sql('UPDATE vrp_users SET bank=bank-? WHERE id=?', [value, id]);
+    return sql('UPDATE vrp_user_moneys SET bank=bank-? WHERE user_id=?', [value, id]);
+  }
+}
+
 export const addWallet = async (id, value) => {
   if (await isOnline(id)) {
     if (hasPlugin('@azteca', 'vrp-old')) return lua(`vRP.giveMoney({${id}, ${value}})`);
