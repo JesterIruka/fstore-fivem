@@ -342,8 +342,10 @@ export const addHousePermission = async (id, prefix) => {
       if (row.user_id == id) return new Warning('O jogador já possui a casa (Renovando...)');
       return new Warning(`A casa ${prefix} já está ocupada por um jogador diferente`);
     }
-    const data: any = { user_id: id, home: prefix, owner: 1, garage: 1, tax: now() };
-    if (hasPlugin('home-no-tax')) delete data['tax'];
+    const fields = await queryFields(table);
+    const data: any = { user_id: id, home: prefix, owner: 1, garage: 1 };
+    if (fields.includes('tax'))
+      data.tax = now();
     await insert(table, data);
     await homesMonitor.add(prefix, id);
     return prefix;
