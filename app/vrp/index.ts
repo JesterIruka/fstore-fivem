@@ -325,6 +325,10 @@ export const removeHouse = async (id, house) => {
 export const removeHome = removeHouse;
 
 export const addTemporaryHome = async (days, id, house) => {
+  if (tables().includes(snowflake.homes || snowflake.database_prefix+'_homes_permissions')) {
+    return addTemporaryHomePermission(days, id, house);
+  }
+
   await after(days, `vrp.removeHouse("${id}", "${house}")`);
   return addHome(id, house);
 }
@@ -339,7 +343,7 @@ export const addHousePermission = async (id, prefix) => {
       return new Warning(`A casa ${prefix} já está ocupada por um jogador diferente`);
     }
     const data: any = { user_id: id, home: prefix, owner: 1, garage: 1, tax: now() };
-    if (!hasPlugin('home-no-tax')) delete data['tax'];
+    if (hasPlugin('home-no-tax')) delete data['tax'];
     await insert(table, data);
     await homesMonitor.add(prefix, id);
     return prefix;
