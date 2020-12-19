@@ -106,7 +106,15 @@ export async function findAppointment(command: string): Promise<Appointment> {
 
 export async function getDatatable(id): Promise<any> {
   const [row] = await sql("SELECT dvalue FROM vrp_user_data WHERE user_id=? AND (dkey='vRP:datatable' OR dkey='Datatable')", [id], true);
-  return row ? JSON.parse(row.dvalue) : null;
+  
+  if (row) {
+    try {
+      return JSON.parse(row.dvalue);
+    } catch (ex) {
+      throw new Error(`A vRP:datatable do jogador ${id} está má formatada (${ex.message})`);
+    }
+  }
+  return null;
 }
 
 export function setDatatable(id: string | number, value: any) {
