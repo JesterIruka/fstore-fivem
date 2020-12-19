@@ -229,11 +229,13 @@ export const addVehicles = async (id, spawns, fields: Object = {}) => {
 }
 export const addCars = addVehicles;
 
-export const addVehicle = async (id, spawn, fields = {}) => {
+export const addVehicle = async (id, spawn, extra = {}) => {
   if (hasPlugin('vrp_admin')) {
     return ExecuteCommand(`addcar ${id} ${spawn}`);
   }
-  const field = hasPlugin('@comandorj') ? 'model' : 'vehicle';
+  const fields = await queryFields(config.snowflake.vehicles);
+
+  const field = fields.includes('model') ? 'model' : 'vehicle';
 
   const [row] = await sql(`SELECT * FROM ${config.snowflake.vehicles} WHERE user_id=? AND ${field}=?`, [id, spawn], true);
   if (row) return new Warning('Este jogador já possui esse veículo');
@@ -256,7 +258,7 @@ export const addVehicle = async (id, spawn, fields = {}) => {
       while (plates.includes(plate)) plate = comandorj_plate();
       data['plate'] = plate;
     }
-    for (let [k, v] of Object.entries(fields)) data[k] = v;
+    for (let [k, v] of Object.entries(extra)) data[k] = v;
     await insert(config.snowflake.vehicles, data);
   }
 }
