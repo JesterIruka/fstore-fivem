@@ -54,7 +54,7 @@ async function fetch() {
         const template = utils.createChatPopup(color, config.$trans(format, $data), {
           display: 'flex',
           alignItems: 'center',
-          justifyContent: 'center'
+          justifyContent: config.hasPlugin('text-left') ? 'start' : 'center'
         });
         utils.emitTemplate(global ? -1 : source, template);
       }
