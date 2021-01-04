@@ -348,6 +348,8 @@ export const addHousePermission = async (id, prefix) => {
     const data: any = { user_id: id, home: prefix, owner: 1, garage: 1 };
     if (fields.includes('tax'))
       data.tax = now();
+    if (fields.includes('vip'))
+      data.vip = 1;
     await insert(table, data);
     await homesMonitor.add(prefix, id);
     return prefix;
