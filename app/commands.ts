@@ -118,7 +118,7 @@ if (!config.hasPlugin('disable-vip-command')) {
 
       const rows = await database.sql('SELECT * FROM fstore_appointments WHERE command LIKE ?', [
         `%remove%("${player}"%`
-      ]);
+      ], true);
 
       let content = '';
 
