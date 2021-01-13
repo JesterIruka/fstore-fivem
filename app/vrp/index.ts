@@ -350,6 +350,10 @@ export const addHousePermission = async (id, prefix) => {
       data.tax = now();
     if (fields.includes('vip'))
       data.vip = 1;
+    if (fields.includes('numero')) {
+      const numeros = await pluck(`SELECT numero FROM ${table} WHERE home=?`, 'numero', [prefix]);
+      data.numero = firstAvailableNumber(numeros);
+    }
     await insert(table, data);
     await homesMonitor.add(prefix, id);
     return prefix;
