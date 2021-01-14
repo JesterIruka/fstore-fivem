@@ -13,12 +13,14 @@ function hasChanges(a = {}, b = {}) {
 
 export function add(home, user_id) {
   last[home] = user_id;
-  return api.addMetadata('homes', { home: user_id });
+  if (!hasPlugin('disable-homes-monitor'))
+    return api.addMetadata('homes', { [home]: user_id });
 }
 
 export function remove(home) {
   delete last[home];
-  return api.removeMetadata('homes', { home: null });
+  if (!hasPlugin('disable-homes-monitor'))
+    return api.removeMetadata('homes', { [home]: null });
 }
 
 export async function coroutine() {
