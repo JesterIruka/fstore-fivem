@@ -1,6 +1,6 @@
 import * as db from '../database';
 import * as api from '../api';
-import config from '../utils/config';
+import config, { hasPlugin } from '../utils/config';
 
 const table = config.snowflake.homes || 'vrp_homes_permissions';
 var last = {};
@@ -13,12 +13,14 @@ function hasChanges(a = {}, b = {}) {
 
 export function add(home, user_id) {
   last[home] = user_id;
-  return api.addMetadata('homes', { home: user_id });
+  if (!hasPlugin('disable-homes-monitor'))
+    return api.addMetadata('homes', { [home]: user_id });
 }
 
 export function remove(home) {
   delete last[home];
-  return api.removeMetadata('homes', { home: null });
+  if (!hasPlugin('disable-homes-monitor'))
+    return api.removeMetadata('homes', { [home]: null });
 }
 
 export async function coroutine() {
@@ -34,7 +36,7 @@ export async function coroutine() {
 
 db.onConnect(() => {
   db.queryTables().then((tables) => {
-    if (tables.includes(table)) {
+    if (tables.includes(table) && !hasPlugin('disable-homes-monitor')) {
       setInterval(coroutine, 10000);
       console.log('Monitorando casas disponíveis em ' + table + '...');
     }

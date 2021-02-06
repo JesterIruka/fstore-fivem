@@ -341,17 +341,24 @@ export const addTemporaryHouse = addTemporaryHome;
 export const addHousePermission = async (id, prefix) => {
   if (prefix.length > 2) {
     const table = config.snowflake.homes || 'vrp_homes_permissions';
+    const fields = await queryFields(table);
+
     const [row] = await sql(`SELECT user_id,home FROM ${table} WHERE home=? AND owner=1`, [prefix], true);
     if (row) {
-      if (row.user_id == id) return new Warning('O jogador já possui a casa (Renovando...)');
-      return new Warning(`A casa ${prefix} já está ocupada por um jogador diferente`);
+      if (row.user_id == id)
+        return new Warning('O jogador já possui a casa (Renovando...)');
+      else if (!fields.includes('numero'))
+        return new Warning(`A casa ${prefix} já está ocupada por um jogador diferente`);
     }
-    const fields = await queryFields(table);
     const data: any = { user_id: id, home: prefix, owner: 1, garage: 1 };
     if (fields.includes('tax'))
       data.tax = now();
     if (fields.includes('vip'))
       data.vip = 1;
+    if (fields.includes('numero')) {
+      const numeros = await pluck(`SELECT numero FROM ${table} WHERE home=?`, 'numero', [prefix]);
+      data.numero = firstAvailableNumber(numeros);
+    }
     await insert(table, data);
     await homesMonitor.add(prefix, id);
     return prefix;
