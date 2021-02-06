@@ -51,9 +51,11 @@ export const addPriority = async (id, level) => {
 }
 
 export const removePriority = async (id) => {
-  if (hasPlugin('@ilharoleplay'))
+  const fields = await queryFields(config.snowflake.priority);
+
+  if (fields.includes('passport'))
     return sql(`DELETE FROM vrp_priority WHERE passport=?`, [id]);
-  if (hasPlugin('@trustcity'))
+  if (fields.includes('id'))
     return sql(`DELETE FROM vrp_priority WHERE id=?`, [id]);
 
   const field = hasPlugin('@warriors') ? 'license' : 'steam';
