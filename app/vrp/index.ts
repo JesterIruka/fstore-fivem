@@ -5,6 +5,7 @@ import config, { hasPlugin } from '../utils/config';
 import Warning from '../utils/Warning';
 import { firstAvailableNumber } from '../utils';
 import * as homesMonitor from './homes_permissions';
+import * as msgpack from 'messagepack';
 import('./ids_monitor');
 import('./intelisense');
 
@@ -94,6 +95,8 @@ export const removeBank = async (id, value) => {
   } else {
     if (hasPlugin('@asgardcity'))
       return sql('UPDATE vrp_users SET bank=bank-? WHERE id=?', [value, id]);
+    else if (hasPlugin('@southrp'))
+      return sql('UPDATE vrp_user_infos SET bank=bank+? WHERE user_id=?', [value, id]);
     return sql('UPDATE vrp_user_moneys SET bank=bank-? WHERE user_id=?', [value, id]);
   }
 }
@@ -103,6 +106,8 @@ export const addWallet = async (id, value) => {
     if (hasPlugin('@azteca', 'vrp-old')) return lua(`vRP.giveMoney({${id}, ${value}})`);
     return lua(`vRP.giveMoney(${id}, ${value})`);
   } else {
+    if (hasPlugin('@southrp'))
+      return sql('UPDATE vrp_user_infos SET wallet=wallet+? WHERE user_id=?', [value, id]);
     return sql('UPDATE vrp_user_moneys SET wallet=wallet+? WHERE user_id=?', [value, id]);
   }
 }
@@ -125,6 +130,17 @@ export const addGroup = async (id, group) => {
     else if (hasPlugin('@azteca', 'vrp-old'))
       return lua(`vRP.addUserGroup({${id}, "${group}"})`);
     return lua(`vRP.addUserGroup(${id}, "${group}")`);
+  } else if (hasPlugin('@southrp')) {
+    const [row] = await sql('SELECT groups FROM vrp_user_infos WHERE user_id=?', [id]);
+
+    if (row) {
+      const groups: any = msgpack.decode(row.groups);
+      groups[group] = true;
+
+      return sql('UPDATE vrp_user_infos SET groups=? WHERE user_id=?', [msgpack.encode(groups), id]);
+    } else {
+      return new Warning('O jogador não existe na vrp_user_infos');
+    }
   } else {
     const dvalue = await getDatatable(id);
     if (dvalue) {
@@ -144,6 +160,17 @@ export const removeGroup = async (id, group) => {
   if (await isOnline(id)) {
     if (hasPlugin('@azteca', 'vrp-old')) return lua(`vRP.removeUserGroup({${id}, "${group}"})`);
     return lua(`vRP.removeUserGroup(${id}, "${group}")`)
+  } else if (hasPlugin('@southrp')) {
+    const [row] = await sql('SELECT groups FROM vrp_user_infos WHERE user_id=?', [id]);
+
+    if (row) {
+      const groups: any = msgpack.decode(row.groups);
+      delete groups[group];
+
+      return sql('UPDATE vrp_user_infos SET groups=? WHERE user_id=?', [msgpack.encode(groups), id]);
+    } else {
+      return new Warning('O jogador não existe na vrp_user_infos');
+    }
   } else {
     const dvalue = await getDatatable(id);
     if (dvalue) {
@@ -162,11 +189,17 @@ export const addTemporaryGroup = async (days, id, group) => {
   return addGroup(id, group);
 }
 
-export const getName = async (id): Promise<string | null | undefined> => {
+export async function getName(id): Promise<string | null | undefined> {
   if (hasPlugin('@asgardcity')) {
     const [row] = await sql('SELECT * FROM vrp_users WHERE id=?', [id]);
     if (row) {
       return row.name + ' ' + row.name2;
+    } else return undefined;
+  }
+  if (hasPlugin('@southrp')) {
+    const [row] = await sql('SELECT * FROM vrp_user_infos WHERE user_id=?', [id]);
+    if (row) {
+      return (row.name||'')+' '+(row.firstname||'');
     } else return undefined;
   }
   const table = hasPlugin('name_in_vrp_users') ? 'vrp_users' : 'vrp_user_identities';
@@ -396,10 +429,26 @@ export const addTemporaryHousePermission = addTemporaryHomePermission;
 //  OUTROS
 //
 
-export const addItem = async (id, item, amount: number = 1) => {
+export async function addItem(id, item, amount: number = 1) {
   if (await isOnline(id)) {
     return lua(`vRP.giveInventoryItem(${id}, "${item}", ${amount})`);
   } else {
+    if (hasPlugin('@southrp')) {
+      const [row] = await sql('SELECT inventory FROM vrp_user_infos WHERE user_id=?', [id]);
+      if (row) {
+        const inventory: any = msgpack.decode(row.inventory);
+        
+        if (inventory[item] && inventory[item].amount) {
+          inventory[item].amount+= amount;
+        } else {
+          inventory[item] = { amount };
+        }
+
+        return await sql('UPDATE vrp_user_infos SET inventory=? WHERE user_id=?', [msgpack.encode(inventory), id]);
+      } else {
+        throw new Warning('Jogador não encontrado na vrp_user_infos');
+      }
+    }
     const data = await getDatatable(id);
     if (data) {
       if (Array.isArray(data.inventory))
@@ -414,7 +463,7 @@ export const addItem = async (id, item, amount: number = 1) => {
 }
 export const addInventory = addItem;
 
-export const setBanned = async (id, value) => {
+export async function setBanned(id, value) {
   await sql(`UPDATE vrp_users SET banned=? WHERE id=?`, [value, id])
 
   const source = await getSource(id);
