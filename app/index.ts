@@ -42,7 +42,9 @@ async function boot() {
     return utils.printError(ex, 'Falha ao criar a tabela de agendamentos da loja');
   }
 
-  console.log(colors.green(utils.BILLBOARD(script_version, config.plugins)));
+  if (!config.hasPlugin('ignore-billboard')) {
+    console.log(colors.green(utils.BILLBOARD(script_version, config.plugins)));
+  }
 
   try {
     utils.printPlan(await api.status());
