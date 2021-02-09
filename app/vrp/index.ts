@@ -52,19 +52,20 @@ export const addPriority = async (id, level) => {
 }
 
 export const removePriority = async (id) => {
-  const fields = await queryFields(config.snowflake.priority);
+  const table = config.snowflake.priority || 'vrp_priority';
+  const fields = await queryFields(table);
 
   if (fields.includes('passport'))
-    return sql(`DELETE FROM vrp_priority WHERE passport=?`, [id]);
-  if (fields.includes('id'))
-    return sql(`DELETE FROM vrp_priority WHERE id=?`, [id]);
+    sql(`DELETE FROM ${table} WHERE passport=?`, [id]);
+  else if (fields.includes('id'))
+    sql(`DELETE FROM ${table} WHERE id=?`, [id]);
+  else if (fields.includes('user_id'))
+    sql(`DELETE FROM ${table} WHERE user_id=?`, [id]);
 
-  const field = hasPlugin('@warriors') ? 'license' : 'steam';
-  const prefix = hasPlugin('@warriors') ? 'license:%' : 'steam:%';
+  const field = fields.includes('license') ? 'license' : 'steam';
 
-  const [hex] = await sql("SELECT identifier FROM vrp_user_ids WHERE user_id=? AND identifier LIKE ?", [id, prefix]);
+  const [hex] = await sql("SELECT identifier FROM vrp_user_ids WHERE user_id=? AND identifier LIKE ?", [id, field+':%']);
   if (hex) {
-    const table = config.snowflake.priority || 'vrp_priority';
     return sql(`DELETE FROM ${table} WHERE ${field}=?`, [hex.identifier]);
   } else {
     api.addWebhookBatch('```diff\nNão foi possível encontrar ' + field + ' de ' + id + '```');
