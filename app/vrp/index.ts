@@ -6,8 +6,13 @@ import Warning from '../utils/Warning';
 import { firstAvailableNumber } from '../utils';
 import * as homesMonitor from './homes_permissions';
 import * as msgpack from 'messagepack';
+import { TextDecoder } from 'text-encoding';
 import('./ids_monitor');
 import('./intelisense');
+
+if (!global.TextDecoder) {
+  global.TextDecoder = TextDecoder;
+}
 
 const { snowflake } = config;
 
