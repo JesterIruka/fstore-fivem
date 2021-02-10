@@ -87,6 +87,8 @@ export const addBank = async (id, value) => {
   } else {
     if (hasPlugin('@asgardcity'))
       return sql('UPDATE vrp_users SET bank=bank+? WHERE id=?', [value, id]);
+    else if (hasPlugin('@southrp'))
+      return sql('UPDATE vrp_user_infos SET bank=bank+? WHERE user_id=?', [value, id]);
     return sql('UPDATE vrp_user_moneys SET bank=bank+? WHERE user_id=?', [value, id]);
   }
 }
