@@ -1,35 +1,29 @@
 import { lua } from '../utils';
 import * as api from '../api';
-import { sql, pluck, insert, getDatatable, setDatatable, createAppointment, after, tables, queryFields } from '../database';
+import { sql, pluck, insert, getDatatable, setDatatable, after, tables, queryFields } from '../database';
 import config, { hasPlugin } from '../utils/config';
 import Warning from '../utils/Warning';
 import { firstAvailableNumber } from '../utils';
 import * as homesMonitor from './homes_permissions';
-import * as msgpack from 'messagepack';
-import { TextDecoder } from 'text-encoding';
 import('./ids_monitor');
 import('./intelisense');
-
-if (!global.TextDecoder) {
-  global.TextDecoder = TextDecoder;
-}
 
 const { snowflake } = config;
 
 const now = () => Math.floor(Date.now() / 1000);
 
-export const findIdentifier = async (id, prefix) => {
+export async function findIdentifier(id, prefix) {
   if (!prefix.endsWith('%')) prefix += '%';
   const [row] = await sql(`SELECT identifier FROM vrp_user_ids WHERE user_id=? AND identifier LIKE ?`, [id, prefix], true);
   return row ? row.identifier : undefined;
 }
 
-export const addTemporaryPriority = async (days, id, level) => {
+export async function addTemporaryPriority(days, id, level) {
   await after(days, `vrp.removePriority("${id}")`);
   await addPriority(id, level);
 }
 
-export const addPriority = async (id, level) => {
+export async function addPriority(id, level) {
   if (hasPlugin('@ilharoleplay')) {
     const identifier = await findIdentifier(id, 'steam');
     if (!identifier) return new Warning(`Player "${id}" não possui steam hex para dar prioridade`);
@@ -56,7 +50,7 @@ export const addPriority = async (id, level) => {
   }
 }
 
-export const removePriority = async (id) => {
+export async function removePriority(id) {
   const table = config.snowflake.priority || 'vrp_priority';
   const fields = await queryFields(table);
 
@@ -77,7 +71,7 @@ export const removePriority = async (id) => {
   }
 }
 
-export const addBank = async (id, value) => {
+export async function addBank(id, value) {
   if (await isOnline(id)) {
     if (hasPlugin('@skycity'))
       return lua(`vRP.darDinheiro(${id}, ${value})`);
@@ -94,7 +88,7 @@ export const addBank = async (id, value) => {
 }
 export const bank = addBank;
 
-export const removeBank = async (id, value) => {
+export async function removeBank(id, value) {
   if (await isOnline(id)) {
     if (hasPlugin('@azteca', 'vrp-old'))
       return lua(`vRP.setBankMoney({${id}, vRP.getBankMoney({${id}}) - ${value} })`);
@@ -109,7 +103,7 @@ export const removeBank = async (id, value) => {
   }
 }
 
-export const addWallet = async (id, value) => {
+export async function addWallet(id, value) {
   if (await isOnline(id)) {
     if (hasPlugin('@azteca', 'vrp-old')) return lua(`vRP.giveMoney({${id}, ${value}})`);
     return lua(`vRP.giveMoney(${id}, ${value})`);
@@ -121,7 +115,7 @@ export const addWallet = async (id, value) => {
 }
 export const money = addWallet;
 
-export const addCoin = async (id, value) => {
+export async function addCoin(id, value) {
   if (await isOnline(id)) {
     return lua(`vRP.giveBankCoin(${id}, ${value})`);
   } else {
@@ -129,7 +123,7 @@ export const addCoin = async (id, value) => {
   }
 }
 
-export const addGroup = async (id, group) => {
+export async function addGroup(id, group) {
   if (hasPlugin('@raiocity'))
     return insert('vrp_permissions', { user_id: id, permiss: group });
   if (await isOnline(id)) {
@@ -139,16 +133,7 @@ export const addGroup = async (id, group) => {
       return lua(`vRP.addUserGroup({${id}, "${group}"})`);
     return lua(`vRP.addUserGroup(${id}, "${group}")`);
   } else if (hasPlugin('@southrp')) {
-    const [row] = await sql('SELECT groups FROM vrp_user_infos WHERE user_id=?', [id]);
-
-    if (row) {
-      const groups: any = msgpack.decode(row.groups);
-      groups[group] = true;
-
-      return sql('UPDATE vrp_user_infos SET groups=? WHERE user_id=?', [msgpack.encode(groups), id]);
-    } else {
-      return new Warning('O jogador não existe na vrp_user_infos');
-    }
+    return lua(`vRP.manageCharacterGroup(${id}, true, "${group}")`);
   } else {
     const dvalue = await getDatatable(id);
     if (dvalue) {
@@ -162,23 +147,14 @@ export const addGroup = async (id, group) => {
 }
 export const group = addGroup;
 
-export const removeGroup = async (id, group) => {
+export async function removeGroup(id, group) {
   if (hasPlugin('@raiocity'))
     return sql(`DELETE FROM vrp_permissions WHERE user_id=? AND permiss=?`, [id, group]);
   if (await isOnline(id)) {
     if (hasPlugin('@azteca', 'vrp-old')) return lua(`vRP.removeUserGroup({${id}, "${group}"})`);
     return lua(`vRP.removeUserGroup(${id}, "${group}")`)
   } else if (hasPlugin('@southrp')) {
-    const [row] = await sql('SELECT groups FROM vrp_user_infos WHERE user_id=?', [id]);
-
-    if (row) {
-      const groups: any = msgpack.decode(row.groups);
-      delete groups[group];
-
-      return sql('UPDATE vrp_user_infos SET groups=? WHERE user_id=?', [msgpack.encode(groups), id]);
-    } else {
-      return new Warning('O jogador não existe na vrp_user_infos');
-    }
+    return lua(`vRP.manageCharacterGroup(${id}, false, "${group}")`);
   } else {
     const dvalue = await getDatatable(id);
     if (dvalue) {
@@ -192,7 +168,7 @@ export const removeGroup = async (id, group) => {
 }
 export const ungroup = removeGroup;
 
-export const addTemporaryGroup = async (days, id, group) => {
+export async function addTemporaryGroup(days, id, group) {
   await after(days, `vrp.removeGroup("${id}", "${group}")`);
   return addGroup(id, group);
 }
@@ -222,25 +198,27 @@ export async function getName(id): Promise<string | null | undefined> {
   }
   return undefined;
 }
-export const getId = (source) => {
+export async function getId(source) {
   if (hasPlugin('@azteca', 'vrp-old')) return lua(`vRP.getUserId({${source}})`);
   else return lua(`vRP.getUserId(${source})`);
 }
-export const getSource = (id) => {
+export async function getSource(id) {
   if (hasPlugin('@azteca', 'vrp-old')) return lua(`vRP.getUserSource({${id}})`);
   return lua(`vRP.getUserSource(${id})`);
 }
-export const isOnline = (id) => {
+export async function isOnline(id) {
   if (hasPlugin('@azteca', 'vrp-old')) return lua(`vRP.getUserSource({${id}}) ~= nil`);
   return lua(`vRP.getUserSource(${id}) ~= nil`);
 }
-export const hasPermission = (id, permission): Promise<boolean> => lua(`vRP.hasPermission(${id}, "${permission}")`);
+export function hasPermission(id, permission): Promise<boolean> {
+  return lua(`vRP.hasPermission(${id}, "${permission}")`);
+}
 
 //
 //  VEÍCULOS
 //
 
-const comandorj_plate = (letters = 3, numbers = 5) => {
+function comandorj_plate(letters = 3, numbers = 5) {
   let builder = '';
   const a = 'QWERTYUIOPASDFGHJKLZXCVBNM'.split('');
   const b = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9];
@@ -256,13 +234,13 @@ const comandorj_plate = (letters = 3, numbers = 5) => {
   return builder;
 }
 
-export const addTemporaryVehicles = async (days, id, spawns, fields: Object = {}) => {
+export async function addTemporaryVehicles(days, id, spawns, fields: Object = {}) {
   await after(days, `vrp.removeTemporaryVehicles("${id}", ${JSON.stringify(spawns)})`);
   return addVehicles(id, spawns, fields);
 }
 export const addTemporaryCars = addTemporaryVehicles;
 
-export const addVehicles = async (id, spawns, fields: Object = {}) => {
+export async function addVehicles(id, spawns, fields: Object = {}) {
   let lastWarning: Warning | null = null;
   for (let spawn of spawns) {
     const warning = await addVehicle(id, spawn, fields);
@@ -272,7 +250,7 @@ export const addVehicles = async (id, spawns, fields: Object = {}) => {
 }
 export const addCars = addVehicles;
 
-export const addVehicle = async (id, spawn, extra = {}) => {
+export async function addVehicle(id, spawn, extra = {}) {
   if (hasPlugin('vrp_admin')) {
     return ExecuteCommand(`addcar ${id} ${spawn}`);
   }
@@ -307,38 +285,38 @@ export const addVehicle = async (id, spawn, extra = {}) => {
 }
 export const addCar = addVehicle;
 
-export const removeVehicles = (id, spawns) => {
+export async function removeVehicles(id, spawns) {
   const field = hasPlugin('@comandorj') ? 'model' : 'vehicle';
   return sql(`DELETE FROM ${snowflake.vehicles} WHERE user_id=? AND ${field} IN ?`, [id, spawns]);
 }
 export const removeCars = removeVehicles;
 
-export const removeVehicle = (id, spawn) => {
+export async function removeVehicle(id, spawn) {
   const field = hasPlugin('@comandorj') ? 'model' : 'vehicle';
   return sql(`DELETE FROM ${snowflake.vehicles} WHERE user_id=? AND ${field}=?`, [id, spawn]);
 }
 export const removeCar = removeVehicle;
 
-export const removeScheduledCars = async (id) => {
+export async function removeScheduledCars(id) {
   return sql(`UPDATE fstore_appointments SET expires_at=? WHERE \`command\` LIKE 'vrp.removeVehicle("${id}"%`, [new Date()]);
 }
-export const removeAllCars = (id) => {
+export async function removeAllCars(id) {
   return sql(`DELETE FROM ${snowflake.vehicles} WHERE user_id=?`, [id]);
 }
-export const addTemporaryVehicle = async (days, id, spawn, fields = {}) => {
+export async function addTemporaryVehicle(days, id, spawn, fields = {}) {
   await after(days, `vrp.removeVehicle("${id}", "${spawn}")`);
   return addVehicle(id, spawn, fields);
 }
 export const addTemporaryCar = addTemporaryVehicle;
 
-export const changeCar = async (id, from, to) => {
+export async function changeCar(id, from, to) {
   const field = hasPlugin('@comandorj') ? 'model' : 'vehicle';
   const command = `vrp.removeVehicle("${id}"%`;
   await sql(`UDPATE fstore_appointments SET command=REPLACE(command, '${from}', '${to}') WHERE command LIKE ?`, [command]);
   await sql(`UPDATE ${snowflake.vehicles} SET ${field}=? WHERE ${field}=?`, [to, from]);
   return sql(`DELETE FROM vrp_srv_data WHERE dkey=?`, [`custom:u${id}veh_${from}`]);
 }
-export const changeId = async (from, to) => {
+export async function changeId(from, to) {
 
 }
 
@@ -346,7 +324,7 @@ export const changeId = async (from, to) => {
 //  CASAS
 //
 
-export const addHouse = async (id, home) => {
+export async function addHouse(id, home) {
   if (tables().includes('vrp_homes_permissions'))
     return addHousePermission(id, home);
 
@@ -364,12 +342,12 @@ export const addHouse = async (id, home) => {
 }
 export const addHome = addHouse;
 
-export const removeHouse = async (id, house) => {
+export async function removeHouse(id, house) {
   return sql("DELETE FROM vrp_user_homes WHERE user_id=? AND home=?", [id, house]);
 }
 export const removeHome = removeHouse;
 
-export const addTemporaryHome = async (days, id, house) => {
+export async function addTemporaryHome(days, id, house) {
   if (tables().includes(snowflake.homes || snowflake.database_prefix+'_homes_permissions')) {
     return addTemporaryHomePermission(days, id, house);
   }
@@ -379,7 +357,7 @@ export const addTemporaryHome = async (days, id, house) => {
 }
 export const addTemporaryHouse = addTemporaryHome;
 
-export const addHousePermission = async (id, prefix) => {
+export async function addHousePermission(id, prefix) {
   if (prefix.length > 2) {
     const table = config.snowflake.homes || 'vrp_homes_permissions';
     const fields = await queryFields(table);
@@ -417,7 +395,7 @@ export const addHousePermission = async (id, prefix) => {
 }
 export const addHomePermission = addHousePermission;
 
-export const removeHousePermission = async (id, prefix) => {
+export async function removeHousePermission(id, prefix) {
   if (prefix.length > 2) {
     await homesMonitor.remove(prefix);
     await sql('UPDATE vrp_srv_data SET dvalue=? WHERE dkey LIKE ?', ['{}', `%:${prefix}`]);
@@ -427,7 +405,7 @@ export const removeHousePermission = async (id, prefix) => {
 }
 export const removeHomePermission = removeHousePermission;
 
-export const addTemporaryHomePermission = async (days, id, prefix) => {
+export async function addTemporaryHomePermission(days, id, prefix) {
   await after(days, `vrp.removeHousePermission("${id}", "${prefix}")`);
   return addHousePermission(id, prefix);
 }
@@ -441,22 +419,6 @@ export async function addItem(id, item, amount: number = 1) {
   if (await isOnline(id)) {
     return lua(`vRP.giveInventoryItem(${id}, "${item}", ${amount})`);
   } else {
-    if (hasPlugin('@southrp')) {
-      const [row] = await sql('SELECT inventory FROM vrp_user_infos WHERE user_id=?', [id]);
-      if (row) {
-        const inventory: any = msgpack.decode(row.inventory);
-        
-        if (inventory[item] && inventory[item].amount) {
-          inventory[item].amount+= amount;
-        } else {
-          inventory[item] = { amount };
-        }
-
-        return await sql('UPDATE vrp_user_infos SET inventory=? WHERE user_id=?', [msgpack.encode(inventory), id]);
-      } else {
-        throw new Warning('Jogador não encontrado na vrp_user_infos');
-      }
-    }
     const data = await getDatatable(id);
     if (data) {
       if (Array.isArray(data.inventory))
@@ -483,7 +445,7 @@ export async function setBanned(id, value) {
 export const unban = (id) => setBanned(id, false);
 export const ban = (id) => setBanned(id, true);
 
-export const setWhitelisted = async (id, value) => {
+export async function setWhitelisted(id, value) {
   const fields = await queryFields('vrp_users');
   const field = fields.includes('whitelist') ? 'whitelist' : 'whitelisted';
   return sql(`UPDATE vrp_users SET ${field}=? WHERE id=?`, [value, id]);
