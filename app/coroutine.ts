@@ -25,7 +25,7 @@ async function fetch() {
 
   for (let sale of all) {
     if (sale.delivery) {
-      if (config.requireOnlineToDelivery && !proxy.isOnline(sale.player)) continue;
+      if (config.requireOnlineToDelivery && !await proxy.isOnline(sale.player)) continue;
 
       const source = await proxy.getSource(sale.player);
       let fullname = await proxy.getName(sale.player);
