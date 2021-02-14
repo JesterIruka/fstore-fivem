@@ -32,7 +32,7 @@ export async function addPriority(id, level) {
   if (hasPlugin('@trustcity'))
     return sql(`REPLACE INTO ${config.snowflake.priority || 'vrp_priority'} VALUES (?)`, [id]);
 
-  const field = hasPlugin('@warriors') ? 'license' : 'steam';
+  const field = hasPlugin('@bronx99') ? 'id' : (hasPlugin('@warriors') ? 'license' : 'steam');
   const prefix = hasPlugin('@warriors') ? 'license:%' : 'steam:%';
 
   const hex = await findIdentifier(id, prefix);
