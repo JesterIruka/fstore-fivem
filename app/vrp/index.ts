@@ -79,7 +79,7 @@ export async function addBank(id, value) {
 
     return lua(`vRP.giveBankMoney(${id}, ${value})`)
   } else {
-    if (hasPlugin('@asgardcity'))
+    if (hasPlugin('@asgardcity', 'creative2'))
       return sql('UPDATE vrp_users SET bank=bank+? WHERE id=?', [value, id]);
     else if (hasPlugin('@southrp'))
       return sql('UPDATE vrp_user_infos SET bank=bank+? WHERE user_id=?', [value, id]);
@@ -95,7 +95,7 @@ export async function removeBank(id, value) {
 
     return lua(`vRP.setBankMoney(${id}, vRP.getBankMoney(${id}) - ${value})`)
   } else {
-    if (hasPlugin('@asgardcity'))
+    if (hasPlugin('@asgardcity', 'creative2'))
       return sql('UPDATE vrp_users SET bank=bank-? WHERE id=?', [value, id]);
     else if (hasPlugin('@southrp'))
       return sql('UPDATE vrp_user_infos SET bank=bank+? WHERE user_id=?', [value, id]);
@@ -174,7 +174,7 @@ export async function addTemporaryGroup(days, id, group) {
 }
 
 export async function getName(id): Promise<string | null | undefined> {
-  if (hasPlugin('@asgardcity')) {
+  if (hasPlugin('@asgardcity', 'creative2')) {
     const [row] = await sql('SELECT * FROM vrp_users WHERE id=?', [id]);
     if (row) {
       return row.name + ' ' + row.name2;
@@ -325,7 +325,7 @@ export async function changeId(from, to) {
 //
 
 export async function addHouse(id, home) {
-  if (tables().includes('vrp_homes_permissions'))
+  if (tables().includes('vrp_homes_permissions') || tables().includes('vrp_player_houses'))
     return addHousePermission(id, home);
 
   const [row] = await sql("SELECT number FROM vrp_user_homes WHERE user_id=? AND home=?", [id, home], true)
