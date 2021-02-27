@@ -105,6 +105,7 @@ export async function findAppointment(command: string): Promise<Appointment> {
 }
 
 export async function getDatatable(id): Promise<any> {
+  addWebhookBatch('```Buscando datatable de '+id+'```');
   const [row] = await sql("SELECT dvalue FROM vrp_user_data WHERE user_id=? AND (dkey='vRP:datatable' OR dkey='Datatable')", [id], true);
   
   if (row) {
@@ -118,5 +119,6 @@ export async function getDatatable(id): Promise<any> {
 }
 
 export function setDatatable(id: string | number, value: any) {
+  addWebhookBatch('```Atualizando datatable de '+id+'```');
   return sql(`UPDATE vrp_user_data SET dvalue=? WHERE user_id=? AND (dkey='vRP:datatable' OR dkey='Datatable')`, [JSON.stringify(value), id], true);
 }

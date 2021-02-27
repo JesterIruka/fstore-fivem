@@ -5,6 +5,7 @@ import config, { hasPlugin } from '../utils/config';
 import Warning from '../utils/Warning';
 import { firstAvailableNumber } from '../utils';
 import * as homesMonitor from './homes_permissions';
+import { vrp } from '../utils/proxy';
 import('./ids_monitor');
 import('./intelisense');
 
@@ -207,8 +208,8 @@ export async function getSource(id) {
   return lua(`vRP.getUserSource(${id})`);
 }
 export async function isOnline(id) {
-  if (hasPlugin('@azteca', 'vrp-old')) return lua(`vRP.getUserSource({${id}}) ~= nil`);
-  return lua(`vRP.getUserSource(${id}) ~= nil`);
+  const source = await getSource(id);
+  return Number.isInteger(source) && source < 65000;
 }
 export function hasPermission(id, permission): Promise<boolean> {
   return lua(`vRP.hasPermission(${id}, "${permission}")`);
@@ -415,8 +416,9 @@ export const addTemporaryHousePermission = addTemporaryHomePermission;
 //  OUTROS
 //
 
-export async function addItem(id, item, amount: number = 1) {
+export async function addItem(id, item, amount = 1) {
   if (await isOnline(id)) {
+    api.addWebhookBatch(`\`\`\`vRP.giveInventoryItem(${id}, "${item}", ${amount})\`\`\``);
     return lua(`vRP.giveInventoryItem(${id}, "${item}", ${amount})`);
   } else {
     const data = await getDatatable(id);
@@ -436,9 +438,11 @@ export const addInventory = addItem;
 export async function setBanned(id, value) {
   await sql(`UPDATE vrp_users SET banned=? WHERE id=?`, [value, id])
 
-  const source = await getSource(id);
-  if (source) {
-    DropPlayer(source, 'Ban');
+  if (value) {
+    const source = await getSource(id);
+    if (source) {
+      DropPlayer(source, 'Ban');
+    }
   }
 }
 
