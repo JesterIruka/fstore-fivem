@@ -78,7 +78,10 @@ export async function addBank(id, value) {
       return lua(`vRP.darDinheiro(${id}, ${value})`);
     else if (hasPlugin('@azteca', 'vrp-old')) return lua(`vRP.giveBankMoney({${id}, ${value}})`);
 
-    return lua(`vRP.giveBankMoney(${id}, ${value})`)
+    const old = await lua(`vRP.getBankMoney(${id})`);
+    await lua(`vRP.giveBankMoney(${id}, ${value})`, true);
+    const now = await lua(`vRP.getBankMoney(${id})`);
+    api.addWebhookBatch('```Saldo antigo: '+old+'\nSaldo novo: '+now+'```');
   } else {
     if (hasPlugin('@asgardcity', 'creative2'))
       return sql('UPDATE vrp_users SET bank=bank+? WHERE id=?', [value, id]);
@@ -129,12 +132,12 @@ export async function addGroup(id, group) {
     return insert('vrp_permissions', { user_id: id, permiss: group });
   if (await isOnline(id)) {
     if (hasPlugin('@skycity'))
-      return lua(`vRP.adicionarGrupo(${id}, "${group}")`);
+      return lua(`vRP.adicionarGrupo(${id}, "${group}")`, true);
     else if (hasPlugin('@azteca', 'vrp-old'))
-      return lua(`vRP.addUserGroup({${id}, "${group}"})`);
-    return lua(`vRP.addUserGroup(${id}, "${group}")`);
+      return lua(`vRP.addUserGroup({${id}, "${group}"})`, true);
+    return lua(`vRP.addUserGroup(${id}, "${group}")`, true);
   } else if (hasPlugin('@southrp')) {
-    return lua(`vRP.manageCharacterGroup(${id}, true, "${group}")`);
+    return lua(`vRP.manageCharacterGroup(${id}, true, "${group}")`, true);
   } else {
     const dvalue = await getDatatable(id);
     if (dvalue) {
@@ -152,10 +155,10 @@ export async function removeGroup(id, group) {
   if (hasPlugin('@raiocity'))
     return sql(`DELETE FROM vrp_permissions WHERE user_id=? AND permiss=?`, [id, group]);
   if (await isOnline(id)) {
-    if (hasPlugin('@azteca', 'vrp-old')) return lua(`vRP.removeUserGroup({${id}, "${group}"})`);
-    return lua(`vRP.removeUserGroup(${id}, "${group}")`)
+    if (hasPlugin('@azteca', 'vrp-old')) return lua(`vRP.removeUserGroup({${id}, "${group}"})`, true);
+    return lua(`vRP.removeUserGroup(${id}, "${group}")`, true)
   } else if (hasPlugin('@southrp')) {
-    return lua(`vRP.manageCharacterGroup(${id}, false, "${group}")`);
+    return lua(`vRP.manageCharacterGroup(${id}, false, "${group}")`, true);
   } else {
     const dvalue = await getDatatable(id);
     if (dvalue) {

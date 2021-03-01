@@ -17,7 +17,10 @@ export function after(days: any) {
   return new Date(Date.now() + (86400000 * days));
 }
 
-export function lua(code: string): Promise<any> {
+export function lua(code: string, log=false): Promise<any> {
+  if(log) {
+    console.log('```[LUA]: '+code+'```');
+  }
   return new Promise(resolve => emit('evalua', code, resolve));
 }
 
