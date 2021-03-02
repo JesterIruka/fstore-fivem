@@ -25,9 +25,11 @@ async function fetch() {
 
   for (let sale of all) {
     if (sale.delivery) {
-      if (config.requireOnlineToDelivery && !await proxy.isOnline(sale.player)) continue;
-
       const source = await proxy.getSource(sale.player);
+      if (config.requireOnlineToDelivery && (!Number.isInteger(source) || source > 65000)) {
+        continue;
+      }
+
       let fullname = await proxy.getName(sale.player);
       if (fullname === undefined) {
         api.addWebhookBatch(`\`\`\`diff\n- ERRO: O jogador ${sale.player} não existe\`\`\``);

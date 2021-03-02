@@ -208,7 +208,7 @@ export async function getSource(id) {
 }
 export async function isOnline(id) {
   const source = await getSource(id);
-  return Number.isInteger(source) && source < 65000;
+  return Number.isInteger(source);
 }
 export function hasPermission(id, permission): Promise<boolean> {
   return lua(`vRP.hasPermission(${id}, "${permission}")`);
