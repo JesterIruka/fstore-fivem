@@ -1,6 +1,6 @@
 import { lua } from '../utils';
 import * as api from '../api';
-import { sql, pluck, insert, getDatatable, setDatatable, after, tables, queryFields } from '../database';
+import { sql, pluck, insert, getDatatable, setDatatable, after, tables, queryFields, findAppointment, replaceInto } from '../database';
 import config, { hasPlugin } from '../utils/config';
 import Warning from '../utils/Warning';
 import { firstAvailableNumber } from '../utils';
@@ -25,30 +25,26 @@ export async function addTemporaryPriority(days, id, level) {
 }
 
 export async function addPriority(id, level) {
-  if (hasPlugin('@ilharoleplay')) {
-    const identifier = await findIdentifier(id, 'steam');
-    if (!identifier) return new Warning(`Player "${id}" não possui steam hex para dar prioridade`);
-    return insert('vrp_priority', { passport: id, steam: identifier, priority: level });
+  const columns = await queryFields(config.snowflake.priority);
+
+  const data:any = {};
+  const set = async (fields:any[], generator:Function) => {
+    const f = columns.find(e=>fields.includes(e));
+    if (f) data[f] = await generator(f);
   }
-  if (hasPlugin('@trustcity'))
-    return sql(`REPLACE INTO ${config.snowflake.priority || 'vrp_priority'} VALUES (?)`, [id]);
+  await set(['user_id', 'passport'], ()=>id);
+  await set(['steam', 'license'], v=>findIdentifier(id, v));
+  await set(['priority'], ()=>level);
+  if (hasPlugin('@bronx99')) data.id = await findIdentifier(id, 'steam');
+  if (hasPlugin('@trustcity')) data.id = id;
 
-  const field = hasPlugin('@bronx99') ? 'id' : (hasPlugin('@warriors') ? 'license' : 'steam');
-  const prefix = hasPlugin('@warriors') ? 'license:%' : 'steam:%';
-
-  const hex = await findIdentifier(id, prefix);
-  if (hex) {
-    if (hasPlugin('@crypto')) {
-      const [row] = await sql("SELECT priority FROM vrp_priority WHERE steam=?", [hex], true);
-      if (row) {
-        return sql('UPDATE vrp_priority SET priority=? WHERE steam=?', [row.priority + level, hex]);
-      }
+  if (hasPlugin('@crypto')) {
+    const [row] = await sql("SELECT priority FROM vrp_priority WHERE steam=?", [data.steam], true);
+    if (row) {
+      return sql('UPDATE vrp_priority SET priority=? WHERE steam=?', [row.priority + level, data.steam]);
     }
-    const table = config.snowflake.priority || 'vrp_priority';
-    return sql(`REPLACE INTO ${table} (${field},priority) VALUES (?,?)`, [hex, level]);
-  } else {
-    api.addWebhookBatch('```diff\n- Não foi possível encontrar a ' + field + ' de ' + id + '```');
   }
+  return replaceInto(config.snowflake.priority, data);
 }
 
 export async function removePriority(id) {

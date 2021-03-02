@@ -3,6 +3,7 @@ import config from '../utils/config';
 import { addWebhookBatch } from '../api';
 import * as utils from '../utils';
 import { EventEmitter } from 'events';
+import { Arr } from 'messagepack';
 
 const dbprefix = config.snowflake.database_prefix || 'vrp';
 
@@ -67,9 +68,20 @@ export const pluck = async (query: string, column: string, args: any[] = [], ign
   return rows.map(r => r[column]);
 }
 
+function questionMarks(len) {
+  if (Array.isArray(len)) len=len.length;
+  return Array(len).fill('?').join(',');
+}
+
 export function insert(table: string, data: Object, ignore = false) {
-  const marks = Object.values(data).map(_ => '?').join(',');
-  const cmd = `INSERT INTO ${table} (${Object.keys(data).join(',')}) VALUES (${marks})`;
+  const keys = Object.keys(data);
+  const cmd = `INSERT INTO ${table} (${keys.join(',')}) VALUES (${questionMarks(keys)})`;
+  return sql(cmd, Object.values(data), ignore);
+}
+
+export function replaceInto(table: string, data: Object, ignore = false) {
+  const keys = Object.keys(data);
+  const cmd = `REPLACE INTO ${table} (${keys.join(',')}) VALUES (${questionMarks(keys)})`;
   return sql(cmd, Object.values(data), ignore);
 }
 
