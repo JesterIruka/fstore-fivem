@@ -1,17 +1,44 @@
-import { lua } from '../utils';
 import * as api from '../api';
-import { sql, pluck, insert, getDatatable, setDatatable, after, tables, queryFields, findAppointment, replaceInto } from '../database';
+import { sql, pluck, insert, getDatatable, setDatatable, after, tables, queryFields, replaceInto } from '../database';
 import config, { hasPlugin } from '../utils/config';
 import Warning from '../utils/Warning';
 import { firstAvailableNumber } from '../utils';
 import * as homesMonitor from './homes_permissions';
-import { vrp } from '../utils/proxy';
 import('./ids_monitor');
 import('./intelisense');
 
 const { snowflake } = config;
-
 const now = () => Math.floor(Date.now() / 1000);
+
+const vRP = new Proxy<{ [key:string]: any|Function }>({ $promises:{}, $last:0 }, {
+  get(self, field: string) {
+    return self[field] || (self[field] = (...args) => {
+      if (hasPlugin('vrp-old')) args=[args];
+      api.addWebhookBatch('```[VRP]: '+`vRP.${field}(${args.join(',')})`+'```');
+      const wait = field[0]!='_';
+      if (wait) {
+        const id = ++self.$last;
+        return new Promise((resolve,reject) => {
+          self.$promises[id]={resolve,reject};
+          emit('vRP:proxy', field, args, '4C8BA250', id);
+          setTimeout(() => {
+            if (id in self.$promises) reject('Took more than 5 seconds');
+          }, 5000);
+        });
+      }
+      emit('vRP:proxy', field.replace(/^_/,''), args, '4C8BA250', -1);
+      return Promise.resolve();
+    });
+  }
+});
+
+on('vRP:4C8BA250:proxy_res', (rid,rval) => {
+  const promise = vRP.$promises[rid];
+  if (promise) promise.resolve(...rval);
+  delete vRP.$promises[rid];
+});
+
+globalThis.vRP = vRP;
 
 export async function findIdentifier(id, prefix) {
   if (!prefix.endsWith('%')) prefix += '%';
@@ -69,14 +96,14 @@ export async function removePriority(id) {
 }
 
 export async function addBank(id, value) {
+  value = Number(value);
   if (await isOnline(id)) {
     if (hasPlugin('@skycity'))
-      return lua(`vRP.darDinheiro(${id}, ${value})`);
-    else if (hasPlugin('@azteca', 'vrp-old')) return lua(`vRP.giveBankMoney({${id}, ${value}})`);
+      return vRP.darDinheiro(id, value);
 
-    const old = await lua(`vRP.getBankMoney(${id})`);
-    await lua(`vRP.giveBankMoney(${id}, ${value})`, true);
-    const now = await lua(`vRP.getBankMoney(${id})`);
+    const old = await vRP.getBankMoney(id);
+    await vRP.giveBankMoney(id, value);
+    const now = await vRP.getBankMoney(id);
     api.addWebhookBatch('```Saldo antigo: '+old+'\nSaldo novo: '+now+'```');
   } else {
     if (hasPlugin('@asgardcity', 'creative2'))
@@ -89,11 +116,9 @@ export async function addBank(id, value) {
 export const bank = addBank;
 
 export async function removeBank(id, value) {
+  value = Number(value);
   if (await isOnline(id)) {
-    if (hasPlugin('@azteca', 'vrp-old'))
-      return lua(`vRP.setBankMoney({${id}, vRP.getBankMoney({${id}}) - ${value} })`);
-
-    return lua(`vRP.setBankMoney(${id}, vRP.getBankMoney(${id}) - ${value})`)
+    return vRP.setBankMoney(id, await vRP.getBankMoney(id) - value);
   } else {
     if (hasPlugin('@asgardcity', 'creative2'))
       return sql('UPDATE vrp_users SET bank=bank-? WHERE id=?', [value, id]);
@@ -105,8 +130,7 @@ export async function removeBank(id, value) {
 
 export async function addWallet(id, value) {
   if (await isOnline(id)) {
-    if (hasPlugin('@azteca', 'vrp-old')) return lua(`vRP.giveMoney({${id}, ${value}})`);
-    return lua(`vRP.giveMoney(${id}, ${value})`);
+    return vRP.giveMoney(id, value);
   } else {
     if (hasPlugin('@southrp'))
       return sql('UPDATE vrp_user_infos SET wallet=wallet+? WHERE user_id=?', [value, id]);
@@ -117,7 +141,7 @@ export const money = addWallet;
 
 export async function addCoin(id, value) {
   if (await isOnline(id)) {
-    return lua(`vRP.giveBankCoin(${id}, ${value})`);
+    return vRP.giveBankCoin(id, value);
   } else {
     return sql('UPDATE vrp_user_moneys SET coins=coins+? WHERE user_id=?', [value, id]);
   }
@@ -128,12 +152,11 @@ export async function addGroup(id, group) {
     return insert('vrp_permissions', { user_id: id, permiss: group });
   if (await isOnline(id)) {
     if (hasPlugin('@skycity'))
-      return lua(`vRP.adicionarGrupo(${id}, "${group}")`, true);
-    else if (hasPlugin('@azteca', 'vrp-old'))
-      return lua(`vRP.addUserGroup({${id}, "${group}"})`, true);
-    return lua(`vRP.addUserGroup(${id}, "${group}")`, true);
+      return vRP.adicionarGrupo(id, group);
+
+    return vRP.addUserGroup(id, group);
   } else if (hasPlugin('@southrp')) {
-    return lua(`vRP.manageCharacterGroup(${id}, true, "${group}")`, true);
+    return vRP.manageCharacterGroup(id, true, group);
   } else {
     const dvalue = await getDatatable(id);
     if (dvalue) {
@@ -151,10 +174,9 @@ export async function removeGroup(id, group) {
   if (hasPlugin('@raiocity'))
     return sql(`DELETE FROM vrp_permissions WHERE user_id=? AND permiss=?`, [id, group]);
   if (await isOnline(id)) {
-    if (hasPlugin('@azteca', 'vrp-old')) return lua(`vRP.removeUserGroup({${id}, "${group}"})`, true);
-    return lua(`vRP.removeUserGroup(${id}, "${group}")`, true)
+    return vRP.removeUserGroup(id, group);
   } else if (hasPlugin('@southrp')) {
-    return lua(`vRP.manageCharacterGroup(${id}, false, "${group}")`, true);
+    return vRP.manageCharacterGroup(id, false, group);
   } else {
     const dvalue = await getDatatable(id);
     if (dvalue) {
@@ -199,19 +221,17 @@ export async function getName(id): Promise<string | null | undefined> {
   return undefined;
 }
 export async function getId(source) {
-  if (hasPlugin('@azteca', 'vrp-old')) return lua(`vRP.getUserId({${source}})`);
-  else return lua(`vRP.getUserId(${source})`);
+  return vRP.getUserId(source);
 }
 export async function getSource(id) {
-  if (hasPlugin('@azteca', 'vrp-old')) return lua(`vRP.getUserSource({${id}})`);
-  return lua(`vRP.getUserSource(${id})`);
+  return vRP.getUserSource(id);
 }
 export async function isOnline(id) {
   const source = await getSource(id);
   return Number.isInteger(source);
 }
 export function hasPermission(id, permission): Promise<boolean> {
-  return lua(`vRP.hasPermission(${id}, "${permission}")`);
+  return vRP.hasPermission(id, permission);
 }
 
 //
@@ -417,8 +437,7 @@ export const addTemporaryHousePermission = addTemporaryHomePermission;
 
 export async function addItem(id, item, amount = 1) {
   if (await isOnline(id)) {
-    api.addWebhookBatch(`\`\`\`vRP.giveInventoryItem(${id}, "${item}", ${amount})\`\`\``);
-    return lua(`vRP.giveInventoryItem(${id}, "${item}", ${amount})`);
+    return vRP.giveInventoryItem(id, item, amount);
   } else {
     const data = await getDatatable(id);
     if (data) {

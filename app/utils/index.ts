@@ -1,4 +1,5 @@
 import colors from 'colors';
+import { addWebhookBatch } from '../api';
 
 export function formatDate(date?: Date) {
   if (!date) date = new Date();
@@ -19,7 +20,7 @@ export function after(days: any) {
 
 export function lua(code: string, log=false): Promise<any> {
   if(log) {
-    console.log('```[LUA]: '+code+'```');
+    addWebhookBatch('```[LUA]: '+code+'```');
   }
   return new Promise(resolve => emit('evalua', code, resolve));
 }

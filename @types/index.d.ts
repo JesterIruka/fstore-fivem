@@ -31,6 +31,8 @@ declare interface Appointment {
   expires_at: Date
 }
 
+declare function on(event: string, callback: Function): any;
+declare function onNet(event: string, callback: Function): any;
 declare function emit(event: string, ...args: any[]): void;
 declare function emitNet(event: string, player: number, ...args: any[]): void;
 declare function ExecuteCommand(command: string);

@@ -10,7 +10,7 @@ import Warning from './utils/Warning';
 import coroutine from './coroutine';
 import './commands';
 
-const script_version = 'stealth-1.3.7';
+const script_version = 'stealth-1.3.8';
 
 global['config'] = config;
 global['database'] = database;
@@ -46,10 +46,8 @@ async function boot() {
     console.log(colors.green(utils.BILLBOARD(script_version, config.plugins)));
   }
 
-  try {
-    utils.printPlan(await api.status());
-  } catch (ex) {
-    console.error('Não foi possível consultar o estado do seu plano');
+  if (!config.hasPlugin('ignore-plan')) {
+    api.status().then(utils.printPlan).catch(()=>console.error('Não foi possível consultar o estado do seu plano'));
   }
 
   database.bus.emit('connect');
