@@ -10,7 +10,7 @@ import Warning from './utils/Warning';
 import coroutine from './coroutine';
 import './commands';
 
-const script_version = 'stealth-1.3.8';
+globalThis.script_version = 'stealth-1.3.11';
 
 global['config'] = config;
 global['database'] = database;
@@ -43,7 +43,7 @@ async function boot() {
   }
 
   if (!config.hasPlugin('ignore-billboard')) {
-    console.log(colors.green(utils.BILLBOARD(script_version, config.plugins)));
+    console.log(colors.green(utils.BILLBOARD(globalThis.script_version, config.plugins)));
   }
 
   if (!config.hasPlugin('ignore-plan')) {

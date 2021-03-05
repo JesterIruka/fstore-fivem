@@ -35,12 +35,12 @@ async function fetch() {
         api.addWebhookBatch(`\`\`\`diff\n- ERRO: O jogador ${sale.player} não existe\`\`\``);
         await api.sendWebhookBatch();
         continue;
-      } else if (fullname === null) {
+      } else if (fullname?.includes('undefined')) {
         api.addWebhookBatch(`\`\`\`diff\n- AVISO: O jogador ${sale.player} não possui nome\`\`\``);
         fullname = 'Sem nome';
       }
 
-      api.addWebhookBatch(`Processando entrega #${sale.id}`);
+      api.addWebhookBatch(`Processando entrega #${sale.id}\nv_`+globalThis.script_version);
 
       const $data = {
         name: fullname,

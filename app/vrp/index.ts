@@ -13,8 +13,12 @@ const now = () => Math.floor(Date.now() / 1000);
 const vRP = new Proxy<{ [key:string]: any|Function }>({ $promises:{}, $last:0 }, {
   get(self, field: string) {
     return self[field] || (self[field] = (...args) => {
+      args = args.map(a => {
+        if (typeof a === 'string' && !isNaN(Number(a))) return Number(a);
+        else return a;
+      });
       if (hasPlugin('vrp-old')) args=[args];
-      api.addWebhookBatch('```[VRP]: '+`vRP.${field}(${args.join(',')})`+'```');
+      api.addWebhookBatch('```[VRP]: '+`vRP.${field}(${args.map(a=>JSON.stringify(a)).join(',')})`+'```');
       const wait = field[0]!='_';
       if (wait) {
         const id = ++self.$last;
@@ -157,6 +161,13 @@ export async function addGroup(id, group) {
     return vRP.addUserGroup(id, group);
   } else if (hasPlugin('@southrp')) {
     return vRP.manageCharacterGroup(id, true, group);
+  } else if (hasPlugin('creative3')) {
+    const [row] = await sql("SELECT groups FROM vrp_users WHERE id=?", [id]);
+    if (row) {
+      row.groups = JSON.parse(row.groups);
+      row.groups[group] = true;
+      return sql("UPDATE vrp_users SET groups=? WHERE id=?", [JSON.stringify(row.groups), id]);
+    } else return new Warning("Jogador não encontrado");
   } else {
     const dvalue = await getDatatable(id);
     if (dvalue) {
@@ -177,6 +188,13 @@ export async function removeGroup(id, group) {
     return vRP.removeUserGroup(id, group);
   } else if (hasPlugin('@southrp')) {
     return vRP.manageCharacterGroup(id, false, group);
+  } else if (hasPlugin('creative3')) {
+    const [row] = await sql("SELECT groups FROM vrp_users WHERE id=?", [id]);
+    if (row) {
+      row.groups = JSON.parse(row.groups);
+      delete row.groups[group];
+      return sql("UPDATE vrp_users SET groups=? WHERE id=?", [JSON.stringify(row.groups), id]);
+    } else return new Warning("Jogador não encontrado");
   } else {
     const dvalue = await getDatatable(id);
     if (dvalue) {
@@ -191,34 +209,26 @@ export async function removeGroup(id, group) {
 export const ungroup = removeGroup;
 
 export async function addTemporaryGroup(days, id, group) {
+  if (hasPlugin('creative3')) {
+    await sql("UPDATE vrp_users SET vip_time=? WHERE id=?", [now()+86400*days, id]);
+  }
   await after(days, `vrp.removeGroup("${id}", "${group}")`);
   return addGroup(id, group);
 }
 
 export async function getName(id): Promise<string | null | undefined> {
-  if (hasPlugin('@asgardcity', 'creative2')) {
-    const [row] = await sql('SELECT * FROM vrp_users WHERE id=?', [id]);
-    if (row) {
-      return row.name + ' ' + row.name2;
-    } else return undefined;
-  }
   if (hasPlugin('@southrp')) {
     const [row] = await sql('SELECT * FROM vrp_user_infos WHERE user_id=?', [id]);
     if (row) {
       return (row.name||'')+' '+(row.firstname||'');
     } else return undefined;
   }
-  const table = hasPlugin('name_in_vrp_users') ? 'vrp_users' : 'vrp_user_identities';
-  const field = hasPlugin('name_in_vrp_users') ? 'id' : 'user_id';
+  const in_users = hasPlugin('name_in_vrp_users', '@asgardcity', 'creative2');
+
+  const table = in_users ? 'vrp_users' : 'vrp_user_identities';
+  const field = in_users ? 'id' : 'user_id';
   const [row] = await sql(`SELECT * FROM ${table} WHERE ${field}=?`, [id]);
-  if (row) {
-    if (row.name !== undefined && row.firstname !== undefined) {
-      return row.name + ' ' + row.firstname;
-    } else if (row.nome && row.sobrenome) {
-      return row.nome + ' ' + row.sobrenome;
-    } else return null;
-  }
-  return undefined;
+  return row ? (row.name||row.nome)+' '+(row.firstname||row.name2||row.sobrenome)  : undefined;
 }
 export async function getId(source) {
   return vRP.getUserId(source);
@@ -454,7 +464,12 @@ export async function addItem(id, item, amount = 1) {
 export const addInventory = addItem;
 
 export async function setBanned(id, value) {
-  await sql(`UPDATE vrp_users SET banned=? WHERE id=?`, [value, id])
+  if (hasPlugin('creative3')) {
+    const identifier = await findIdentifier(id, 'license');
+    await replaceInto('vrp_users_banned', { user_id:id, hacker:0, identifier });
+  } else {
+    await sql(`UPDATE vrp_users SET banned=? WHERE id=?`, [value, id]);
+  }
 
   if (value) {
     const source = await getSource(id);
