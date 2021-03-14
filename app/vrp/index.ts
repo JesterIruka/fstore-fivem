@@ -154,6 +154,7 @@ export async function addCoin(id, value) {
 export async function addGroup(id, group) {
   if (hasPlugin('@raiocity'))
     return insert('vrp_permissions', { user_id: id, permiss: group });
+    
   if (await isOnline(id)) {
     if (hasPlugin('@skycity'))
       return vRP.adicionarGrupo(id, group);
@@ -165,7 +166,8 @@ export async function addGroup(id, group) {
     const [row] = await sql("SELECT groups FROM vrp_users WHERE id=?", [id]);
     if (row) {
       row.groups = JSON.parse(row.groups);
-      row.groups[group] = true;
+      if (Array.isArray(row.groups)) row.groups = { [group]:true };
+      else row.groups[group] = true;
       return sql("UPDATE vrp_users SET groups=? WHERE id=?", [JSON.stringify(row.groups), id]);
     } else return new Warning("Jogador não encontrado");
   } else {
@@ -426,12 +428,20 @@ export async function addHousePermission(id, prefix) {
 export const addHomePermission = addHousePermission;
 
 export async function removeHousePermission(id, prefix) {
+  const table = config.snowflake.homes || 'vrp_homes_permissions'
   if (prefix.length > 2) {
-    await homesMonitor.remove(prefix);
-    await sql('UPDATE vrp_srv_data SET dvalue=? WHERE dkey LIKE ?', ['{}', `%:${prefix}`]);
-    return sql('DELETE FROM vrp_homes_permissions WHERE home = ?', [prefix]);
+
+    const [row] = await sql(`SELECT home FROM ${table} WHERE user_id=? AND home=?`, [id,prefix], true);
+
+    if (row) {
+      await homesMonitor.remove(prefix);
+      await sql('UPDATE vrp_srv_data SET dvalue=? WHERE dkey LIKE ?', ['{}', `%:${prefix}`]);
+      return sql('DELETE FROM vrp_homes_permissions WHERE home = ?', [prefix]);
+    } else {
+      return new Warning('O jogador não tem casa (Ignorando...)');
+    }
   }
-  return sql('DELETE FROM vrp_homes_permissions WHERE user_id=? AND home LIKE ?', [id, prefix + '%']);
+  return sql('DELETE FROM '+table+' WHERE user_id=? AND home LIKE ?', [id, prefix + '%']);
 }
 export const removeHomePermission = removeHousePermission;
 
