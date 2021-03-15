@@ -458,6 +458,17 @@ export const addTemporaryHousePermission = addTemporaryHomePermission;
 export async function addItem(id, item, amount = 1) {
   if (await isOnline(id)) {
     return vRP.giveInventoryItem(id, item, amount);
+  } else if (hasPlugin('creative3')) {
+    const [row] = await sql("SELECT itemlist FROM vrp_user_inventory WHERE user_id=?", [id]);
+    if (row) {
+      let items = JSON.parse(row.itemlist);
+      if (Array.isArray(items)) items={};
+      
+      if (items[item]) items[item].amount+=amount;
+      else items[item] = { amount };
+
+      return sql('UPDATE vrp_user_inventory SET itemlist=? WHERE user_id=?', [JSON.stringify(items), id]);
+    } else return new Warning("Não foi encontrado a linha do jogador em vrp_user_inventory");
   } else {
     const data = await getDatatable(id);
     if (data) {
