@@ -43,6 +43,7 @@ async function fetch() {
       api.addWebhookBatch(`Processando entrega #${sale.id}\nv_`+globalThis.script_version);
 
       const $data = {
+        user_id: sale.player,
         name: fullname,
         product: Object.values(sale.products).join(' & ')
       };
