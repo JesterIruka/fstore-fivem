@@ -87,7 +87,20 @@ async function fetch() {
 }
 
 async function fetchAppointments() {
-  const appointments = await database.getAppointments();
+  let appointments = await database.getAppointments();
+
+  if (config.requireOnlineToRemove) {
+    appointments = await utils.asyncFilter(appointments, async ({command: cmd}) => {
+      if (cmd.startsWith('vrp')) {
+        const id = cmd.substring(cmd.indexOf('(')+1, cmd.indexOf(',')).replace(/\D/g, '');
+        if (parseInt(id)) {
+          return Number.isInteger(await proxy.vrp.getSource(id));
+        } else {
+          return true;
+        }
+      }
+    });
+  }
 
   if (appointments.length > 0) {
     api.addWebhookBatch(`Processando ${appointments.length} agendamento${appointments.length > 1 ? 's' : ''}`);

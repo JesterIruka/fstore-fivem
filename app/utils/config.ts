@@ -27,6 +27,7 @@ interface Config {
     }
   },
   requireOnlineToDelivery: boolean;
+  requireOnlineToRemove?: boolean,
   plugins: string[];
   chat: {
     enabled: boolean;
@@ -72,7 +73,7 @@ export function trans(entry: string, data: object) {
 }
 
 export function $trans(template: string, data: object) {
-  return template.replace(/:[A-z0-9]+/g, sub => data[sub.substring(1)]);
+  return template.replace(/:[\w]+/g, sub => data[sub.substring(1)]);
 }
 
 config.hasPlugin = hasPlugin;

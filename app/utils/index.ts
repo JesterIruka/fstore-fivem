@@ -86,6 +86,16 @@ export function nodeResolve(path: string, force: boolean = false) {
   }
 }
 
+export async function asyncFilter<T>(array: Array<T>, predicate: (o: T) => Promise<any>) {
+  const newArray: T[] = [];
+  for (let item of array) {
+    if (await predicate(item)) {
+      newArray.push(item);
+    }
+  }
+  return newArray;
+}
+
 type FatalResponse = (string | boolean)[];
 
 const knowErrors = {

@@ -1,5 +1,4 @@
 import * as database from '../database';
-import { printError } from '../utils';
 import config from '../utils/config';
 
 const query = database.queryFields;
@@ -7,6 +6,14 @@ const plugins = config.plugins;
 
 database.onConnect(async () => {
   const tables = await database.queryTables();
+
+  if (tables.includes('vrp_characterdata')) {
+    plugins.push('vrp_characterdata');
+  } else if (tables.includes('summerz_characters')) {
+    plugins.push('summerz');
+  } else if (tables.includes('identities') && tables.includes('users_data')) {
+    plugins.push('avg');
+  }
 
   const vehicles = await query(config.snowflake.vehicles);
 
@@ -19,8 +26,6 @@ database.onConnect(async () => {
 
   const homes = tables.includes(home_table) ? await query(home_table) : [];
 
-  if (!homes.includes('tax') && !plugins.includes('home-no-tax')) {
+  if (!homes.includes('tax'))
     plugins.push('home-no-tax');
-    console.log('O Plugin "home-no-tax" foi adicionado automaticamente');
-  }
 });

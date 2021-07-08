@@ -36,11 +36,16 @@ export async function queryTables() {
 
 export const isConnected = () => !!connection;
 
+const fieldsCache = {}
+
 export async function queryFields(table: string): Promise<string[]> {
   if (!connection) throw new Error('Mysql isnt connected');
   if (table.startsWith('vrp_') && dbprefix != 'vrp') table = table.replace(/vrp_/g, dbprefix + '_');
-  const [, fields] = await connection.query(`SELECT * FROM \`${table}\` LIMIT 0`);
-  return fields.map(s => s.name);
+  if (!fieldsCache[table]) {
+    const [, fields] = await connection.query(`SELECT * FROM \`${table}\` LIMIT 0`);
+    fieldsCache[table] = fields.map(s => s.name);
+  }
+  return fieldsCache[table];
 }
 
 export async function sql(sql: string, args: any[] = [], ignore = false): Promise<RowDataPacket[]> {

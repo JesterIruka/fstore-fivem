@@ -24,14 +24,29 @@ export function remove(home) {
 }
 
 export async function coroutine() {
-  const homes = {};
+  try {
+    const homes = {};
+    
+    if (table === 'vrp_propriedades') {
+      const rows = await db.sql(`SELECT id,proprietario FROM ${table} WHERE proprietario!=0`, [], true)
+      rows.forEach(row => homes[row.id] = row.proprietario)
+    } else if (table === 'vrp_mike_users_homes') {
+      const rows = await db.sql(`SELECT user_id,nome FROM ${table}`, [], true)
+      rows.forEach(row => homes[row.nome] = row.user_id)
+    } else if (table === 'core_homes') {
+      const rows = await db.sql(`SELECT user_id,name FROM ${table}`, [], true)
+      rows.forEach(row => homes[row.name] = row.user_id)
+    } else {
+      const rows = await db.sql(`SELECT user_id,home FROM ${table} WHERE owner=1`, [], true);
+      for (let row of rows)
+        homes[row.home] = row.user_id;
+    }
 
-  const rows = await db.sql(`SELECT user_id,home FROM ${table} WHERE owner=1`, [], true);
-  for (let { user_id, home } of rows)
-    homes[home] = user_id;
-
-  if (hasChanges(homes, last))
-    await api.setMetadata('homes', last = homes);
+    if (hasChanges(homes, last))
+      await api.setMetadata('homes', last = homes);
+  } catch (ex) {
+    console.error('Falha no monitoramente do casas: '+ex.message);
+  }
 }
 
 db.onConnect(() => {

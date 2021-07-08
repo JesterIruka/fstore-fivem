@@ -8,6 +8,9 @@ async function coroutine() {
   const ids = await db.pluck('SELECT id FROM vrp_users', 'id');
   const seq = sequence(ids);
 
+  const len = JSON.stringify(seq).length;
+  if (len > 65000) return;
+
   if (hasChanges(seq, last))
     await api.setMetadata('ids', last = seq);
 }
@@ -43,6 +46,10 @@ function sequence(ids) {
   }
   if (curSeq.length) sequences.push(curSeq);
 
-  return sequences.map(a => a[0] + '-' + a.pop());
+  return sequences.map(a => {
+    const [first,last] = a;
+    if (last && first != last) return first+'-'+last;
+    else return first;
+  });
 }
 

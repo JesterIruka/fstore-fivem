@@ -4,7 +4,8 @@ import config, { hasPlugin } from '../utils/config';
 import Warning from '../utils/Warning';
 import { firstAvailableNumber } from '../utils';
 import * as homesMonitor from './homes_permissions';
-import('./ids_monitor');
+if (hasPlugin('ids-monitor'))
+  import('./ids_monitor');
 import('./intelisense');
 
 const { snowflake } = config;
@@ -65,7 +66,7 @@ export async function addPriority(id, level) {
   }
   await set(['user_id', 'passport'], ()=>id);
   await set(['steam', 'license'], v=>findIdentifier(id, v));
-  await set(['priority'], ()=>level);
+  await set(['priority', 'prioridade'], ()=>level);
   if (hasPlugin('@bronx99')) data.id = await findIdentifier(id, 'steam');
   if (hasPlugin('@trustcity')) data.id = id;
 
@@ -110,6 +111,8 @@ export async function addBank(id, value) {
     const now = await vRP.getBankMoney(id);
     api.addWebhookBatch('```Saldo antigo: '+old+'\nSaldo novo: '+now+'```');
   } else {
+    if (hasPlugin('@sx'))
+      return sql('UPDATE vrp_user_identities SET banco=banco+? WHERE user_id=?', [value, id]); 
     if (hasPlugin('@asgardcity', 'creative2'))
       return sql('UPDATE vrp_users SET bank=bank+? WHERE id=?', [value, id]);
     else if (hasPlugin('@southrp'))
@@ -152,7 +155,7 @@ export async function addCoin(id, value) {
 }
 
 export async function addGroup(id, group) {
-  if (hasPlugin('@raiocity'))
+  if (tables().includes('vrp_permissions'))
     return insert('vrp_permissions', { user_id: id, permiss: group });
     
   if (await isOnline(id)) {
@@ -170,6 +173,8 @@ export async function addGroup(id, group) {
       else row.groups[group] = true;
       return sql("UPDATE vrp_users SET groups=? WHERE id=?", [JSON.stringify(row.groups), id]);
     } else return new Warning("Jogador não encontrado");
+  } else if (hasPlugin('identity_vip')) {
+    return sql('UPDATE vrp_user_identities SET vip=? WHERE user_id=?', [group, id])
   } else {
     const dvalue = await getDatatable(id);
     if (dvalue) {
@@ -184,7 +189,7 @@ export async function addGroup(id, group) {
 export const group = addGroup;
 
 export async function removeGroup(id, group) {
-  if (hasPlugin('@raiocity'))
+  if (tables().includes('vrp_permissions'))
     return sql(`DELETE FROM vrp_permissions WHERE user_id=? AND permiss=?`, [id, group]);
   if (await isOnline(id)) {
     return vRP.removeUserGroup(id, group);
@@ -197,11 +202,13 @@ export async function removeGroup(id, group) {
       delete row.groups[group];
       return sql("UPDATE vrp_users SET groups=? WHERE id=?", [JSON.stringify(row.groups), id]);
     } else return new Warning("Jogador não encontrado");
+  } else if (hasPlugin('identity_vip')) {
+    return sql('UPDATE vrp_user_identities SET vip=null WHERE user_id=?', [id])
   } else {
     const dvalue = await getDatatable(id);
     if (dvalue) {
-      if (Array.isArray(dvalue.groups)) dvalue.groups = {};
-      delete dvalue.groups[group];
+      if (Array.isArray(dvalue.groups) || dvalue.groups == null) dvalue.groups = {};
+      else delete dvalue.groups[group];
       return setDatatable(id, dvalue);
     } else {
       console.error('Não foi possível encontrar o dvalue para o jogador ' + id);
@@ -219,11 +226,27 @@ export async function addTemporaryGroup(days, id, group) {
 }
 
 export async function getName(id): Promise<string | null | undefined> {
+  if (hasPlugin('summerz')) {
+    const [row] = await sql('SELECT * FROM summerz_characters WHERE id=?', [id]);
+    if (row) {
+      return row.name+' '+row.name2;
+    } else return undefined;
+  }
+  if (hasPlugin('vrp_characterdata')) {
+    const [row] = await sql('SELECT * FROM vrp_characterdata WHERE user_id=?', id);
+    if (row) {
+      return (row.firstname||'')+' '+(row.lastname||'');
+    } else return undefined;
+  }
   if (hasPlugin('@southrp')) {
     const [row] = await sql('SELECT * FROM vrp_user_infos WHERE user_id=?', [id]);
     if (row) {
       return (row.name||'')+' '+(row.firstname||'');
     } else return undefined;
+  }
+  if (hasPlugin('avg')) {
+    const [row] = await sql('SELECT * FROM identities WHERE user_id=?', [id]);
+    return row ? (row.name+' '+row.name2).replace(/undefined/g, '') : undefined;
   }
   const in_users = hasPlugin('name_in_vrp_users', '@asgardcity', 'creative2');
 
@@ -246,29 +269,17 @@ export function hasPermission(id, permission): Promise<boolean> {
   return vRP.hasPermission(id, permission);
 }
 
-//
-//  VEÍCULOS
-//
+function comandorj_plate() {
+  const letters = 'QWERTYUIOPASDFGHJKLZXCVBNM'.split('');
+  const numbers = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9];
+  const r = a => a[Math.floor(a.length * Math.random())];
 
-function comandorj_plate(letters = 3, numbers = 5) {
-  let builder = '';
-  const a = 'QWERTYUIOPASDFGHJKLZXCVBNM'.split('');
-  const b = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9];
-  while (letters > 0 || numbers > 0) {
-    if (Math.random() <= 0.5 && letters > 0) {
-      builder += a[Math.floor(a.length * Math.random())];
-      letters -= 1;
-    } else if (numbers > 0) {
-      builder += b[Math.floor(b.length * Math.random())];
-      numbers -= 1;
-    }
-  }
-  return builder;
+  return 'NNLLLNNN'.replace(/[NL]/g, (str) => r(str==='N' ? numbers : letters));
 }
 
 export async function addTemporaryVehicles(days, id, spawns, fields: Object = {}) {
   await after(days, `vrp.removeTemporaryVehicles("${id}", ${JSON.stringify(spawns)})`);
-  return addVehicles(id, spawns, fields);
+  return addVehicles(id, spawns, { ...fields, _days:days });
 }
 export const addTemporaryCars = addTemporaryVehicles;
 
@@ -282,36 +293,55 @@ export async function addVehicles(id, spawns, fields: Object = {}) {
 }
 export const addCars = addVehicles;
 
-export async function addVehicle(id, spawn, extra = {}) {
+export async function addVehicle(id, spawn, extra: any = {}) {
   if (hasPlugin('vrp_admin')) {
     return ExecuteCommand(`addcar ${id} ${spawn}`);
   }
   const fields = await queryFields(config.snowflake.vehicles);
 
-  const field = fields.includes('model') ? 'model' : 'vehicle';
+  const field = ['model','vehicle','veiculo'].find(s => fields.includes(s));
+  if (!field) {
+    return new Warning('Campo de veículo não suportado');
+  }
 
   const [row] = await sql(`SELECT * FROM ${config.snowflake.vehicles} WHERE user_id=? AND ${field}=?`, [id, spawn], true);
-  if (row) return new Warning('Este jogador já possui esse veículo');
-  else {
-    const data = { user_id: id };
+  if (row) {
+    if (fields.includes('premiumtime') && extra.days) {
+      await sql(`UPDATE ${config.snowflake.vehicles} SET premiumtime = premiumtime+? WHERE user_id=? AND ${field}=?`, [extra.days*86400, id, spawn])
+    }
+    return new Warning('Este jogador já possui esse veículo');
+  } else {
+    const data: Record<string, any> = { user_id: id };
     data[field] = spawn;
     if (hasPlugin('@centralroleplay')) {
       const [old] = await sql(`SELECT vtype FROM fstore_helper WHERE spawn=?`, [spawn], true);
-      data['veh_type'] = old ? old.vtype : 'car';
+      data.veh_type = old ? old.vtype : 'car';
 
       const [udata] = await sql(`SELECT registration FROM vrp_user_identities WHERE user_id=?`, [id], true);
-      data['vehicle_plate'] = 'P ' + udata.registration;
+      data.vehicle_plate = 'P ' + udata.registration;
     }
-    if (hasPlugin('@crypto') || hasPlugin('ipva')) data['ipva'] = now();
-    if (hasPlugin('@americandream')) data['can_sell'] = 0;
-    if (hasPlugin('@comandorj', 'vehicle-trunk')) data['trunk'] = '[]';
-    if (hasPlugin('@comandorj')) {
+    if (fields.includes('ipva')) data.ipva = now();
+    if (fields.includes('phone')) {
+      if ((await queryFields('vrp_users')).includes('phone')) {
+        const [row] = await sql("SELECT phone FROM vrp_users WHERE id=?", [id]);
+        data.phone = row.phone;
+      } else {
+        const [row] = await sql('SELECT phone FROM vrp_user_identities WHERE user_id=?', [id]);
+        data.phone = row.phone;
+      }
+    }
+    if (hasPlugin('@americandream')) data.can_sell = 0;
+    if (fields.includes('trunk')) data.trunk = '[]';
+    if (fields.includes('placa')) data.placa = comandorj_plate();
+    if (fields.includes('premiumtime') && extra._days) data.premiumtime = now() + 86400 * extra._days;
+    if (fields.includes('plate')) {
       const plates = await pluck(`SELECT plate FROM ${config.snowflake.vehicles}`, 'plate');
       let plate = comandorj_plate();
       while (plates.includes(plate)) plate = comandorj_plate();
-      data['plate'] = plate;
+      data.plate = plate;
     }
-    for (let [k, v] of Object.entries(extra)) data[k] = v;
+    for (let [k, v] of Object.entries(extra))
+      k[0] != '_' && (data[k] = v);
     await insert(config.snowflake.vehicles, data);
   }
 }
@@ -337,7 +367,7 @@ export async function removeAllCars(id) {
 }
 export async function addTemporaryVehicle(days, id, spawn, fields = {}) {
   await after(days, `vrp.removeVehicle("${id}", "${spawn}")`);
-  return addVehicle(id, spawn, fields);
+  return addVehicle(id, spawn, { ...fields, _days:days });
 }
 export const addTemporaryCar = addTemporaryVehicle;
 
@@ -379,9 +409,12 @@ export async function removeHouse(id, house) {
 }
 export const removeHome = removeHouse;
 
-export async function addTemporaryHome(days, id, house) {
+export async function addTemporaryHome(days, id, house, extra={}) {
   if (tables().includes(snowflake.homes || snowflake.database_prefix+'_homes_permissions')) {
-    return addTemporaryHomePermission(days, id, house);
+    if (snowflake.homes === 'vrp_mike_users_homes') {
+      return addHomePermission(id, house, { ...extra, days })
+    }
+    return addTemporaryHomePermission(days, id, house, extra);
   }
 
   await after(days, `vrp.removeHouse("${id}", "${house}")`);
@@ -389,7 +422,47 @@ export async function addTemporaryHome(days, id, house) {
 }
 export const addTemporaryHouse = addTemporaryHome;
 
-export async function addHousePermission(id, prefix) {
+export async function addHousePermission(id, prefix, extra: any={}) {
+  if (tables().includes('vrp_mike_users_homes')) {
+    const [old] = await sql('SELECT nome FROM vrp_mike_users_homes WHERE user_id=? AND nome=?', [id, prefix], true)
+    if (old) {
+      return sql('UPDATE vrp_mike_users_homes SET expire_home=expire_home+? WHERE user_id=? AND nome=?', [
+        extra.days * 86400, id, prefix
+      ])
+    }
+
+    const [row] = await sql('SELECT interior,apartamento FROM vrp_mike_homes WHERE nome=?', [prefix])
+    if (row) {
+      const { interior, apartamento } = row
+      const data = {
+        user_id: id, nome: prefix, interior, apartamento,
+        iptu: now(), expire_home: now() + extra.days * 86400
+      }
+
+      await insert('vrp_mike_home_permission', { user_id: id, nome: prefix, apartamento })
+      return insert('vrp_mike_users_homes', data)
+    } else {
+      return console.error('Não foi possivel encontrar informacoes sobre a casa '+prefix)
+    }
+  } else if (snowflake.homes === 'vrp_propriedades') {
+    const [old] = await sql('SELECT proprietario FROM vrp_propriedades WHERE id=?', [prefix])
+    if (!old) {
+      return new Warning('Esta casa não existe')
+    } else if (old.proprietario != 0 && old.proprietario != id) {
+      return new Warning('Esta casa já pertence a outra pessoa')
+    } else if (old.proprietario == id) {
+      return
+    } else {
+      return sql('UPDATE vrp_propriedades SET proprietario=? WHERE id=?', [id, prefix])
+    }
+  } else if (snowflake.homes === 'core_homes') {
+    const [old] = await sql('SELECT user_id FROM core_homes WHERE name=? AND user_id=?', [prefix, id])
+    if (old) {
+      return
+    } else {
+      return sql(`INSERT INTO core_homes (name,interior,user_id,tax) VALUES (?,(SELECT interiorType FROM core_residences WHERE name=?),?,?)`, [prefix, prefix, id, now()])
+    }
+  }
   if (prefix.length > 2) {
     const table = config.snowflake.homes || 'vrp_homes_permissions';
     const fields = await queryFields(table);
@@ -401,15 +474,15 @@ export async function addHousePermission(id, prefix) {
       else if (!fields.includes('numero'))
         return new Warning(`A casa ${prefix} já está ocupada por um jogador diferente`);
     }
-    const data: any = { user_id: id, home: prefix, owner: 1, garage: 1 };
-    if (fields.includes('tax'))
-      data.tax = now();
-    if (fields.includes('vip'))
-      data.vip = 1;
+    const data: any = { user_id: id, home: prefix, owner: 1 };
+    if (fields.includes('tax')) data.tax = now();
+    if (fields.includes('vip')) data.vip = 1;
+    if (fields.includes('garage')) data.garage = 1;
     if (fields.includes('numero')) {
       const numeros = await pluck(`SELECT numero FROM ${table} WHERE home=?`, 'numero', [prefix]);
       data.numero = firstAvailableNumber(numeros);
     }
+    Object.assign(data, extra)
     await insert(table, data);
     await homesMonitor.add(prefix, id);
     return prefix;
@@ -429,13 +502,18 @@ export const addHomePermission = addHousePermission;
 
 export async function removeHousePermission(id, prefix) {
   const table = config.snowflake.homes || 'vrp_homes_permissions'
-  if (prefix.length > 2) {
+  if (table === 'vrp_propriedades') {
+    return sql('UPDATE vrp_propriedades SET proprietario=0,moradores=? WHERE id=?', ['{}', prefix])
+  } else if (table === 'core_homes') {
+    return sql('DELETE FROM core_homes WHERE name=? AND user_id=?', [prefix, id])
+  } else if (prefix.length > 2) {
 
     const [row] = await sql(`SELECT home FROM ${table} WHERE user_id=? AND home=?`, [id,prefix], true);
 
     if (row) {
       await homesMonitor.remove(prefix);
-      await sql('UPDATE vrp_srv_data SET dvalue=? WHERE dkey LIKE ?', ['{}', `%:${prefix}`]);
+      await sql('UPDATE vrp_srv_data SET dvalue=? WHERE dkey LIKE ? OR dkey LIKE ?', ['{}', `%:${prefix}`, `homesVault:%:${prefix}`]);
+
       return sql('DELETE FROM vrp_homes_permissions WHERE home = ?', [prefix]);
     } else {
       return new Warning('O jogador não tem casa (Ignorando...)');
@@ -445,9 +523,9 @@ export async function removeHousePermission(id, prefix) {
 }
 export const removeHomePermission = removeHousePermission;
 
-export async function addTemporaryHomePermission(days, id, prefix) {
+export async function addTemporaryHomePermission(days, id, prefix, extra={}) {
   await after(days, `vrp.removeHousePermission("${id}", "${prefix}")`);
-  return addHousePermission(id, prefix);
+  return addHousePermission(id, prefix, extra);
 }
 export const addTemporaryHousePermission = addTemporaryHomePermission;
 
