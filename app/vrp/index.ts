@@ -1,5 +1,5 @@
 import * as api from '../api';
-import { sql, pluck, insert, getDatatable, setDatatable, after, tables, queryFields, replaceInto } from '../database';
+import { sql, pluck, insert, getDatatable, setDatatable, after, tables, queryFields, replaceInto, firstTable } from '../database';
 import config, { hasPlugin } from '../utils/config';
 import Warning from '../utils/Warning';
 import { firstAvailableNumber } from '../utils';
@@ -117,6 +117,8 @@ export async function addBank(id, value) {
       return sql('UPDATE vrp_users SET bank=bank+? WHERE id=?', [value, id]);
     else if (hasPlugin('@southrp'))
       return sql('UPDATE vrp_user_infos SET bank=bank+? WHERE user_id=?', [value, id]);
+    else if (tables().includes('vrp_characters'))
+      return sql('UPDATE vrp_characters SET bank=bank+? WHERE user_id=?', [value, id]) 
     return sql('UPDATE vrp_user_moneys SET bank=bank+? WHERE user_id=?', [value, id]);
   }
 }
@@ -232,28 +234,15 @@ export async function getName(id): Promise<string | null | undefined> {
       return row.name+' '+row.name2;
     } else return undefined;
   }
-  if (hasPlugin('vrp_characterdata')) {
-    const [row] = await sql('SELECT * FROM vrp_characterdata WHERE user_id=?', id);
+  const utable = firstTable('vrp_characterdata', 'vrp_user_infos', 'identities', 'vrp_characters', 'vrp_user_identities')
+  if (utable) {
+    const [row] = await sql(`SELECT * FROM ${utable} WHERE user_id=?`, [id]);
     if (row) {
-      return (row.firstname||'')+' '+(row.lastname||'');
+      return (row.name??row.nome??row.firstname)+' '+(row.lastname??row.sobrenome??row.name2??row.firstname)
     } else return undefined;
   }
-  if (hasPlugin('@southrp')) {
-    const [row] = await sql('SELECT * FROM vrp_user_infos WHERE user_id=?', [id]);
-    if (row) {
-      return (row.name||'')+' '+(row.firstname||'');
-    } else return undefined;
-  }
-  if (hasPlugin('avg')) {
-    const [row] = await sql('SELECT * FROM identities WHERE user_id=?', [id]);
-    return row ? (row.name+' '+row.name2).replace(/undefined/g, '') : undefined;
-  }
-  const in_users = hasPlugin('name_in_vrp_users', '@asgardcity', 'creative2');
-
-  const table = in_users ? 'vrp_users' : 'vrp_user_identities';
-  const field = in_users ? 'id' : 'user_id';
-  const [row] = await sql(`SELECT * FROM ${table} WHERE ${field}=?`, [id]);
-  return row ? (row.name||row.nome)+' '+(row.firstname||row.name2||row.sobrenome)  : undefined;
+  const [row] = await sql(`SELECT * FROM vrp_users WHERE id=?`, [id]);
+  return row ? (row.name||row.nome||row.firstname)+' '+(row.lastname||row.sobrenome||row.name2||row.firstname) : undefined;
 }
 export async function getId(source) {
   return vRP.getUserId(source);
@@ -322,7 +311,10 @@ export async function addVehicle(id, spawn, extra: any = {}) {
     }
     if (fields.includes('ipva')) data.ipva = now();
     if (fields.includes('phone')) {
-      if ((await queryFields('vrp_users')).includes('phone')) {
+      if (tables().includes('vrp_characters')) {
+        const [row] = await sql("SELECT phone FROM vrp_characters WHERE user_id=?", [id]);
+        data.phone = row.phone;
+      } else if ((await queryFields('vrp_users')).includes('phone')) {
         const [row] = await sql("SELECT phone FROM vrp_users WHERE id=?", [id]);
         data.phone = row.phone;
       } else {
@@ -462,8 +454,9 @@ export async function addHousePermission(id, prefix, extra: any={}) {
     } else {
       return sql(`INSERT INTO core_homes (name,interior,user_id,tax) VALUES (?,(SELECT interiorType FROM core_residences WHERE name=?),?,?)`, [prefix, prefix, id, now()])
     }
-  }
-  if (prefix.length > 2) {
+  } else if (snowflake.homes === 'edden_house') {
+    return sql('UPDATE edden_house SET owner_id=? WHERE name=?', [id, prefix]);
+  } else if (prefix.length > 2) {
     const table = config.snowflake.homes || 'vrp_homes_permissions';
     const fields = await queryFields(table);
 
@@ -506,6 +499,8 @@ export async function removeHousePermission(id, prefix) {
     return sql('UPDATE vrp_propriedades SET proprietario=0,moradores=? WHERE id=?', ['{}', prefix])
   } else if (table === 'core_homes') {
     return sql('DELETE FROM core_homes WHERE name=? AND user_id=?', [prefix, id])
+  } else if (table === 'edden_house') {
+    return sql('UPDATE edden_house SET owner_id=null WHERE name=? AND owner_id=?', [prefix, id])
   } else if (prefix.length > 2) {
 
     const [row] = await sql(`SELECT home FROM ${table} WHERE user_id=? AND home=?`, [id,prefix], true);

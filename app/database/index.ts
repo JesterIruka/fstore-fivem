@@ -94,6 +94,10 @@ export function tables() {
   return $tables;
 }
 
+export function firstTable(...args) {
+  return args.find(t => $tables.includes(t))
+}
+
 export const createAppointmentsTable = () => (
   sql("CREATE TABLE IF NOT EXISTS fstore_appointments (id BIGINT NOT NULL AUTO_INCREMENT, command VARCHAR(512), created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, expires_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, PRIMARY KEY (id))", [], true)
 );

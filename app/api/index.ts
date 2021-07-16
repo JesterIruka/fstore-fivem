@@ -5,7 +5,7 @@ import cfg, { token } from '../utils/config';
 let hasWebhook = cfg.webhook.toLowerCase().includes("/api/webhooks");
 
 const endpoint = axios.create({
-  baseURL: `https://five-m.store/api/v2`,
+  baseURL: `https://api.five-m.store/api/v2`,
   headers: {
     Authorization: token
   }

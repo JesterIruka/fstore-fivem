@@ -36,6 +36,9 @@ export async function coroutine() {
     } else if (table === 'core_homes') {
       const rows = await db.sql(`SELECT user_id,name FROM ${table}`, [], true)
       rows.forEach(row => homes[row.name] = row.user_id)
+    } else if (table === 'edden_house') {
+      const rows = await db.sql(`SELECT owner_id,name FROM ${table} WHERE owner_id IS NOT NULL`, [], true)
+      rows.forEach(row => homes[row.name] = row.owner_id)
     } else {
       const rows = await db.sql(`SELECT user_id,home FROM ${table} WHERE owner=1`, [], true);
       for (let row of rows)

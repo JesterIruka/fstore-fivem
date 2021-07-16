@@ -10,7 +10,7 @@ import Warning from './utils/Warning';
 import coroutine from './coroutine';
 import './commands';
 
-globalThis.script_version = 'stealth-1.4.18';
+globalThis.script_version = 'stealth-1.6';
 
 global['config'] = config;
 global['database'] = database;
@@ -21,6 +21,10 @@ global['api'] = api;
 global['Warning'] = Warning;
 global['utils'] = utils;
 global['custom'] = utils.nodeResolve('./custom') || {};
+
+global.exports('dispatch', (namespace, method, ...args) => {
+  return global[namespace]?.[method]?.(...args)
+})
 
 async function boot() {
 
